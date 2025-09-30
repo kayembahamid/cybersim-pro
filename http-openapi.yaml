@@ -1,0 +1,161 @@
+openapi: 3.0.3
+info:
+  title: CyberSim Pro HTTP Bridge
+  version: 1.0.0
+  description: HTTP endpoints mirroring CyberSim Pro MCP tools for non‑MCP clients and GPT Actions.
+servers:
+  - url: http://localhost:8787
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /tool/create_scenario:
+    post:
+      summary: Create a cybersecurity training scenario
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, difficulty]
+              properties:
+                type:
+                  type: string
+                  enum: [phishing, ransomware, ddos, data_breach, insider_threat, apt]
+                difficulty:
+                  type: string
+                  enum: [beginner, intermediate, advanced, expert]
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: Scenario created
+  /tool/simulate_attack:
+    post:
+      summary: Simulate a cyberattack
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attack_type, target]
+              properties:
+                attack_type:
+                  type: string
+                target:
+                  type: string
+                intensity:
+                  type: string
+                  enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: Simulation started
+  /tool/analyze_network:
+    post:
+      summary: Analyze network traffic
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [network_segment]
+              properties:
+                network_segment:
+                  type: string
+                duration:
+                  type: number
+                focus:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Analysis result
+  /tool/investigate_incident:
+    post:
+      summary: Investigate a security incident
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [incident_id]
+              properties:
+                incident_id:
+                  type: string
+                scope:
+                  type: string
+                  enum: [initial, full, deep_dive]
+      responses:
+        '200':
+          description: Investigation details
+  /tool/forensics_analysis:
+    post:
+      summary: Perform digital forensics
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artifact_type, system_id]
+              properties:
+                artifact_type:
+                  type: string
+                  enum: [memory, disk, network, logs, registry]
+                system_id:
+                  type: string
+                analysis_depth:
+                  type: string
+                  enum: [quick, standard, comprehensive]
+      responses:
+        '200':
+          description: Forensics result
+  /tool/generate_report:
+    post:
+      summary: Generate a security report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report_type]
+              properties:
+                report_type:
+                  type: string
+                  enum: [incident, vulnerability, compliance, executive]
+                incident_ids:
+                  type: array
+                  items:
+                    type: string
+                include_recommendations:
+                  type: boolean
+      responses:
+        '200':
+          description: Report generated

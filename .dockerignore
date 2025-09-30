@@ -1,0 +1,10 @@
+# Exclude local-only files from the Docker build context
+node_modules
+build
+.git
+.gitignore
+.vscode
+Dockerfile
+npm-debug.log
+**/*.log
+

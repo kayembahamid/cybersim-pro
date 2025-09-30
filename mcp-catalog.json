@@ -1,0 +1,23 @@
+{
+  "id": "cybersim-pro-mcp",
+  "name": "CyberSim Pro",
+  "description": "Cybersecurity training and simulation MCP server: scenarios, threat simulation, network analysis, incident response, forensics, and reporting.",
+  "image": "hamcodes/cybersim-pro-mcp:latest",
+  "instructions": {
+    "stdio": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "hamcodes/cybersim-pro-mcp:latest"]
+    },
+    "http": {
+      "command": "docker",
+      "args": ["run", "--rm", "-p", "8787:8787", "-e", "CYBERSIM_MODE=http", "hamcodes/cybersim-pro-mcp:latest"]
+    }
+  },
+  "categories": ["security", "training", "simulation"],
+  "license": "MIT",
+  "repository": "https://github.com/kayembahamid/cybersim-pro",
+  "homepage": "https://github.com/kayembahamid/cybersim-pro",
+  "maintainers": [
+    { "name": "kayembahamid", "email": "" }
+  ]
+}

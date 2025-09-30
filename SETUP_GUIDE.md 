@@ -1,0 +1,428 @@
+# CyberSim Pro MCP Server - Complete Setup Guide
+
+## 📋 Prerequisites Checklist
+
+Before starting, ensure you have:
+- ✅ Node.js 18.0.0 or higher installed
+- ✅ npm (comes with Node.js)
+- ✅ Text editor or IDE (VS Code recommended)
+- ✅ Terminal/Command Prompt access
+- ✅ Claude Desktop or Cline VSCode extension
+
+## 🚀 Step-by-Step Setup
+
+### Step 1: Create Project Directory
+
+```bash
+# Create the main project directory
+mkdir cybersim-pro-mcp
+cd cybersim-pro-mcp
+
+# Create source directory structure
+mkdir -p src/scenarios
+mkdir -p src/simulators
+mkdir -p src/managers
+mkdir -p src/analyzers
+```
+
+### Step 2: Create Configuration Files
+
+#### Create `package.json`
+```bash
+# In the root directory (cybersim-pro-mcp/)
+```
+Copy the package.json content provided in the artifacts.
+
+#### Create `tsconfig.json`
+```bash
+# In the root directory (cybersim-pro-mcp/)
+```
+Copy the tsconfig.json content provided in the artifacts.
+
+### Step 3: Add Source Files
+
+Copy each TypeScript file to its correct location:
+
+**Main Server:**
+- Copy `index.ts` → `src/index.ts`
+
+**Scenarios Module:**
+- Copy `scenarioManager.ts` → `src/scenarios/scenarioManager.ts`
+
+**Simulators Module:**
+- Copy `networkSimulator.ts` → `src/simulators/networkSimulator.ts`
+- Copy `threatSimulator.ts` → `src/simulators/threatSimulator.ts`
+
+**Managers Module:**
+- Copy `incidentResponseManager.ts` → `src/managers/incidentResponseManager.ts`
+
+**Analyzers Module:**
+- Copy `forensicsAnalyzer.ts` → `src/analyzers/forensicsAnalyzer.ts`
+
+### Step 4: Install Dependencies
+
+```bash
+# Install all required dependencies
+npm install
+
+# This will install:
+# - @modelcontextprotocol/sdk@^0.5.0
+# - typescript@^5.3.0
+# - @types/node@^20.0.0
+```
+
+### Step 5: Build the Project
+
+```bash
+# Compile TypeScript to JavaScript
+npm run build
+
+# You should see a 'build' directory created with compiled .js files
+```
+
+### Step 6: Verify Build
+
+```bash
+# Check that build directory exists and contains files
+ls -la build/
+
+# You should see:
+# - index.js
+# - scenarios/scenarioManager.js
+# - simulators/networkSimulator.js
+# - simulators/threatSimulator.js
+# - managers/incidentResponseManager.js
+# - analyzers/forensicsAnalyzer.js
+```
+
+### Step 7: Configure Claude Desktop (macOS)
+
+```bash
+# Open Claude Desktop configuration file
+nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+Add this configuration (replace `/path/to/` with your actual path):
+
+```json
+{
+  "mcpServers": {
+    "cybersim-pro": {
+      "command": "node",
+      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
+    }
+  }
+}
+```
+
+**Important:** Use the full absolute path! Example:
+```
+/Users/yourusername/Documents/cybersim-pro-mcp/build/index.js
+```
+
+### Step 7: Configure Claude Desktop (Windows)
+
+```powershell
+# Open Claude Desktop configuration file
+notepad %APPDATA%\Claude\claude_desktop_config.json
+```
+
+Add this configuration (replace path appropriately):
+
+```json
+{
+  "mcpServers": {
+    "cybersim-pro": {
+      "command": "node",
+      "args": ["C:\\Users\\YourUsername\\Documents\\cybersim-pro-mcp\\build\\index.js"]
+    }
+  }
+}
+```
+
+### Step 8: Configure Cline (VSCode Extension)
+
+If using Cline instead of Claude Desktop:
+
+1. Open VSCode
+2. Open Cline settings (Cmd/Ctrl + Shift + P → "Cline: Open MCP Settings")
+3. Add the server configuration:
+
+```json
+{
+  "mcpServers": {
+    "cybersim-pro": {
+      "command": "node",
+      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
+    }
+  }
+}
+```
+
+### Step 9: Restart Claude/Cline
+
+**For Claude Desktop:**
+- Completely quit Claude Desktop (Cmd+Q on Mac, close all windows on Windows)
+- Restart Claude Desktop
+- Look for the 🔌 icon indicating MCP servers are connected
+
+**For Cline:**
+- Reload VSCode window (Cmd/Ctrl + Shift + P → "Developer: Reload Window")
+- Check Cline status bar for server connection
+
+### Step 10: Test the Installation
+
+Open Claude/Cline and try these test commands:
+
+**Test 1: Create a Simple Scenario**
+```
+Create a beginner-level phishing scenario for testing
+```
+
+**Test 2: Network Analysis**
+```
+Analyze the DMZ network segment for 10 minutes focusing on anomalies
+```
+
+**Test 3: Forensics**
+```
+Perform a quick forensics analysis on disk artifacts for system WORKSTATION-001
+```
+
+## 🔍 Troubleshooting
+
+### Issue: "Command not found" or "node: not found"
+
+**Solution:**
+```bash
+# Verify Node.js installation
+node --version
+npm --version
+
+# If not installed, download from https://nodejs.org/
+```
+
+### Issue: "Cannot find module '@modelcontextprotocol/sdk'"
+
+**Solution:**
+```bash
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+### Issue: "Claude Desktop doesn't show MCP servers"
+
+**Solutions:**
+1. Check config file path is correct
+2. Verify absolute path to build/index.js
+3. Ensure JSON syntax is valid (use JSONLint.com)
+4. Check console logs: View → Toggle Developer Tools → Console
+5. Restart Claude Desktop completely
+
+### Issue: "TypeScript compilation errors"
+
+**Solution:**
+```bash
+# Clean build and rebuild
+rm -rf build/
+npm run build
+
+# If errors persist, check TypeScript version
+npx tsc --version
+
+# Should be 5.3.0 or higher
+```
+
+### Issue: "Permission denied" on macOS/Linux
+
+**Solution:**
+```bash
+# Ensure files are readable
+chmod +r src/**/*.ts
+chmod +x node_modules/.bin/*
+```
+
+### Issue: Server runs but tools don't appear
+
+**Solution:**
+1. Check Claude Desktop logs in Developer Tools
+2. Verify server is actually running:
+   ```bash
+   node build/index.js
+   # Should show: "CyberSim Pro MCP server running on stdio"
+   ```
+3. Test directly with MCP inspector tool
+
+## 📁 Final Directory Structure
+
+Your completed project should look like this:
+
+```
+cybersim-pro-mcp/
+├── node_modules/              # Dependencies (created by npm install)
+│   ├── @modelcontextprotocol/
+│   ├── typescript/
+│   └── ...
+├── src/                       # Source TypeScript files
+│   ├── index.ts
+│   ├── scenarios/
+│   │   └── scenarioManager.ts
+│   ├── simulators/
+│   │   ├── networkSimulator.ts
+│   │   └── threatSimulator.ts
+│   ├── managers/
+│   │   └── incidentResponseManager.ts
+│   └── analyzers/
+│       └── forensicsAnalyzer.ts
+├── build/                     # Compiled JavaScript (created by build)
+│   ├── index.js
+│   ├── index.d.ts
+│   ├── scenarios/
+│   ├── simulators/
+│   ├── managers/
+│   └── analyzers/
+├── package.json
+├── package-lock.json          # Created by npm install
+├── tsconfig.json
+└── README.md
+```
+
+## ✅ Verification Checklist
+
+After setup, verify:
+
+- [ ] `node_modules/` directory exists with dependencies
+- [ ] `build/` directory exists with .js files
+- [ ] `npm run build` completes without errors
+- [ ] Claude Desktop config file has correct absolute path
+- [ ] Claude Desktop shows 🔌 icon for MCP connection
+- [ ] Test command successfully creates a scenario
+- [ ] All 6 tools are available in Claude
+
+## 🎯 Quick Start Commands
+
+After successful setup, try these commands in Claude:
+
+**Scenario Creation:**
+```
+Create an advanced ransomware scenario in a corporate environment
+```
+
+**Attack Simulation:**
+```
+Simulate a high-intensity APT attack targeting FILESERVER-001
+```
+
+**Network Analysis:**
+```
+Analyze the internal network for threats and vulnerabilities over 30 minutes
+```
+
+**Incident Investigation:**
+```
+Investigate incident INC-2024-001 with deep_dive scope
+```
+
+**Forensics Analysis:**
+```
+Perform comprehensive memory forensics on WORKSTATION-001
+```
+
+**Report Generation:**
+```
+Generate an executive security report including incident INC-2024-001 with recommendations
+```
+
+## 🔄 Development Workflow
+
+For ongoing development:
+
+```bash
+# Make changes to TypeScript files in src/
+
+# Option 1: Manual rebuild
+npm run build
+
+# Option 2: Watch mode (auto-rebuild on changes)
+npm run watch
+
+# Restart Claude Desktop to pick up changes
+```
+
+## 📝 Configuration Notes
+
+### Environment Variables (Optional)
+
+You can set environment variables for debugging:
+
+```bash
+# macOS/Linux
+export DEBUG=mcp:*
+node build/index.js
+
+# Windows
+set DEBUG=mcp:*
+node build/index.js
+```
+
+### Custom Port (If Needed)
+
+The server uses stdio by default, but you can modify for network operation:
+
+```typescript
+// In src/index.ts, modify the transport:
+// const transport = new StdioServerTransport();
+// Change to SSE or other transport as needed
+```
+
+## 🆘 Getting Help
+
+If you encounter issues:
+
+1. **Check the logs:**
+   - Claude Desktop: View → Toggle Developer Tools → Console
+   - Terminal: Run `node build/index.js` directly to see errors
+
+2. **Verify paths:**
+   ```bash
+   # Test the command manually
+   node /absolute/path/to/cybersim-pro-mcp/build/index.js
+   ```
+
+3. **Validate JSON:**
+   - Copy your config to https://jsonlint.com/
+   - Ensure no syntax errors
+
+4. **Clean installation:**
+   ```bash
+   rm -rf node_modules build package-lock.json
+   npm install
+   npm run build
+   ```
+
+## 🎉 Success!
+
+Once you see the 🔌 icon in Claude Desktop and can successfully run test commands, your CyberSim Pro MCP server is fully operational!
+
+You now have access to:
+- ✅ 6 powerful cybersecurity tools
+- ✅ Realistic scenario generation
+- ✅ Attack simulation capabilities
+- ✅ Network analysis features
+- ✅ Incident response tools
+- ✅ Digital forensics analysis
+- ✅ Comprehensive reporting
+
+## 🚀 Next Steps
+
+1. **Explore the tools** - Try each tool with different parameters
+2. **Read the documentation** - Check README.md for detailed usage
+3. **Practice scenarios** - Start with beginner level and progress
+4. **Customize** - Modify the code to add your own scenarios
+5. **Share** - Help others set up their own instances
+
+---
+
+**Happy Simulating! 🔒🛡️**
