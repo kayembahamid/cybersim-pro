@@ -244,6 +244,19 @@ chmod +r src/**/*.ts
 chmod +x node_modules/.bin/*
 ```
 
+### Issue: "mcp-publisher publish" fails (401 or missing Docker tag)
+
+**Reason:** The registry rejects publishes if your login token expired or the referenced Docker tag (e.g. `hamcodes/cybersim-pro-mcp:v1.0.1`) is missing metadata.
+
+**Solution:**
+1. Refresh registry auth: `mcp-publisher login github`, then open https://github.com/login/device and enter the code before the CLI times out.
+2. Verify the Docker image exists:
+   ```bash
+   docker pull hamcodes/cybersim-pro-mcp:v1.0.1
+   ```
+   If this fails, rerun the GitHub Actions publish workflow (requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets).
+3. Ensure your Docker image has the label `io.modelcontextprotocol.server.name="io.github.kayembahamid/cybersim-pro"`, then rebuild and push before retrying `mcp-publisher publish`.
+
 ### Issue: Server runs but tools don't appear
 
 **Solution:**
