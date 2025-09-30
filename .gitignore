@@ -19,3 +19,6 @@ pnpm-debug.log*
 .env
 .env.*
 
+# MCP registry CLI artifacts
+.mcpregistry_*
+registry/

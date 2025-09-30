@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.kayembahamid/cybersim-pro",
+  "description": "Cybersecurity training, simulation, and incident response MCP server",
+  "websiteUrl": "https://kayembahamid.github.io",
+  "repository": {
+    "url": "https://github.com/kayembahamid/cybersim-pro",
+    "source": "github",
+    "subfolder": "cybersim-pro-mcp"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "registryBaseUrl": "https://docker.io",
+      "identifier": "hamcodes/cybersim-pro-mcp",
+      "version": "v1.0.0",
+      "runtimeHint": "docker",
+      "transport": { "type": "stdio" },
+      "runtimeArguments": [
+        { "type": "positional", "value": "run" },
+        { "type": "named", "name": "--rm" },
+        { "type": "named", "name": "-i" },
+        { "type": "positional", "value": "hamcodes/cybersim-pro-mcp:v1.0.0" }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "type": "icon",
+      "url": "https://raw.githubusercontent.com/kayembahamid/cybersim-pro/main/cybersim-pro-mcp/assets/icon.svg",
+      "mimeType": "image/svg+xml"
+    }
+  ]
+}

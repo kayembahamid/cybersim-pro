@@ -32,7 +32,8 @@ LABEL org.opencontainers.image.title="cybersim-pro-mcp" \
       org.opencontainers.image.created="$BUILD_CREATED" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="CyberSim Pro" \
-      org.opencontainers.image.authors="kayembahamid"
+      org.opencontainers.image.authors="kayembahamid" \
+      io.modelcontextprotocol.server.name="io.github.kayembahamid/cybersim-pro"
 
 # Copy runtime artifacts
 COPY --from=build /app/node_modules ./node_modules

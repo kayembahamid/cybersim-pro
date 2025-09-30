@@ -41,6 +41,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=cybersim-pro-mcp
             org.opencontainers.image.description=CyberSim Pro – MCP server for cybersecurity training, simulation, IR and forensics
+            io.modelcontextprotocol.server.name=io.github.kayembahamid/cybersim-pro
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -55,4 +56,3 @@ jobs:
             BUILD_VERSION=${{ steps.meta.outputs.version }}
             BUILD_CREATED=${{ github.event.repository.updated_at }}
             VCS_REF=${{ github.sha }}
-
