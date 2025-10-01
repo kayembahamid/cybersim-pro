@@ -540,6 +540,61 @@ Digital forensics maintains proper evidence handling:
 6. After each tool run, download/record the JSON output (Claude → Actions → Copy raw tool response) into your exercise evidence folder.
 7. Conclude with the “Closeout reflection” prompt, then stop the container (Ctrl+C) and revert the lab VM to its clean snapshot.
 
+##### Sample `simulate_attack` output (trimmed)
+
+```json
+{
+  "simulationId": "SIM-1759281782112",
+  "attackType": "ransomware",
+  "target": "FILESERVER-001",
+  "phases": [
+    {
+      "phase": "Initial Access",
+      "techniques": [
+        {
+          "name": "Phishing Email",
+          "mitreId": "T1566.001",
+          "detected": true,
+          "detectionMethod": "Email gateway sandbox"
+        }
+      ],
+      "artifacts": [
+        {
+          "type": "Email",
+          "location": "user@company.com inbox",
+          "content": "Subject: Urgent - Q4 Financial Report [malicious_doc.docm]"
+        }
+      ]
+    },
+    {
+      "phase": "Impact",
+      "techniques": [
+        {
+          "name": "Data Encrypted for Impact",
+          "mitreId": "T1486",
+          "detected": true
+        }
+      ],
+      "artifacts": [
+        {
+          "type": "File",
+          "location": "C:\\Users\\*\\Desktop\\README_FOR_DECRYPT.txt",
+          "content": "Your files have been encrypted..."
+        }
+      ]
+    }
+  ],
+  "iocs": [
+    { "type": "SHA256", "value": "01d02a0d...", "severity": "High" }
+  ],
+  "detectionRate": 50,
+  "impactAssessment": {
+    "scope": "Multiple departments",
+    "estimatedDowntime": 48
+  }
+}
+```
+
 ### 2. Automation via HTTP Bridge ("TTP Bridge")
 
 - **Bring up the API**: within the same sandbox run `npm run serve:http` or the Docker HTTP mode to expose CyberSim Pro’s REST interface for orchestration.
@@ -605,6 +660,16 @@ Include lessons learned, policy updates, and technology improvements for leaders
 ```text
 Summarize key defensive takeaways from today’s tabletop by People, Process, and Technology. Highlight next steps for blue-team readiness.
 ```
+
+### Turning Outputs into a Polished Report
+
+1. Run `generate_report` (executive or incident) with the incident IDs collected during the exercise.
+2. Ask your MCP client to convert the tool response into a formatted document:
+   ```text
+   Convert the generate_report output into a Markdown executive summary with sections for Overview, Key Findings, Detection Gaps, Recommendations, and Appendix (include IOCs table).
+   ```
+3. Optionally request additional formats (Google Doc, PDF, slide outline) using the assistant’s native export features.
+4. Store the final report alongside the raw tool JSON in your evidence repository so teams can trace findings back to the simulation data.
 
 ## 📊 Output Formats
 
