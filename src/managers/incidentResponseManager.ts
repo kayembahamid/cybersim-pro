@@ -100,6 +100,11 @@ export interface SecurityReport {
   recommendations: Recommendation[];
   metrics: SecurityMetrics;
   appendices: Appendix[];
+  scorecard: ScorecardOverview;
+  facilitationKit: FacilitationKit;
+  executiveDashboard: ExecutiveDashboard;
+  maturityRoadmap: MaturityRoadmap;
+  procurementBrief: ProcurementBrief;
 }
 
 export interface IncidentSummary {
@@ -146,6 +151,86 @@ export interface SecurityMetrics {
 export interface Appendix {
   title: string;
   content: string;
+}
+
+export interface ScorecardOverview {
+  exerciseSummary: string;
+  metrics: {
+    detectionLatencyHours: number;
+    containmentTimeHours: number;
+    eradicationTimeHours: number;
+  };
+  redTeam: TeamScorecard;
+  blueTeam: TeamScorecard;
+  purpleTeam: TeamScorecard;
+}
+
+export interface TeamScorecard {
+  category: string;
+  detectionLatency: string;
+  containmentPerformance: string;
+  lessonsLearned: string[];
+  nextSteps: string[];
+}
+
+export interface FacilitationKit {
+  kickoffPrompt: string;
+  scenarioSeed: string;
+  teleprompterNotes: string[];
+  agenda: SessionAgendaItem[];
+}
+
+export interface SessionAgendaItem {
+  phase: string;
+  durationMinutes: number;
+  objective: string;
+  cues: string[];
+}
+
+export interface ExecutiveDashboard {
+  riskHeadline: string;
+  downtimeEstimateHours: number;
+  financialExposureMillions: number;
+  customerImpact: string;
+  heatmap: DashboardHeatmapItem[];
+  nextBoardActions: string[];
+}
+
+export interface DashboardHeatmapItem {
+  dimension: string;
+  status: "On Track" | "At Risk" | "Critical";
+  notes: string;
+}
+
+export interface MaturityRoadmap {
+  frameworkAlignment: FrameworkAlignment[];
+  milestones: RoadmapMilestone[];
+}
+
+export interface FrameworkAlignment {
+  framework: string;
+  currentLevel: string;
+  targetLevel: string;
+  nextSteps: string[];
+}
+
+export interface RoadmapMilestone {
+  quarter: string;
+  theme: string;
+  owner: string;
+  deliverables: string[];
+}
+
+export interface ProcurementBrief {
+  summary: string;
+  faqs: ProcurementFaq[];
+  legalConsiderations: string[];
+  riskControls: string[];
+}
+
+export interface ProcurementFaq {
+  question: string;
+  answer: string;
 }
 
 export class IncidentResponseManager {
@@ -611,7 +696,8 @@ export class IncidentResponseManager {
   async generateReport(
     reportType: string,
     incidentIds: string[],
-    includeRecommendations: boolean
+    includeRecommendations: boolean,
+    mode?: string
   ): Promise<SecurityReport> {
     const reportId = `RPT-${Date.now()}`;
     const generatedDate = new Date().toISOString();
@@ -621,6 +707,12 @@ export class IncidentResponseManager {
     const recommendations = includeRecommendations ? this.generateRecommendations(incidents) : [];
     const metrics = this.calculateMetrics(incidents);
     const appendices = this.generateAppendices(reportType);
+    const contextLabel = mode || reportType;
+    const scorecard = this.buildScorecard(contextLabel, incidents, metrics);
+    const facilitationKit = this.buildFacilitationKit(contextLabel, incidents);
+    const executiveDashboard = this.buildExecutiveDashboard(riskAssessment, metrics);
+    const maturityRoadmap = this.buildMaturityRoadmap();
+    const procurementBrief = this.buildProcurementBrief();
 
     const executiveSummary = this.createExecutiveSummary(reportType, incidents, riskAssessment);
 
@@ -634,6 +726,11 @@ export class IncidentResponseManager {
       recommendations,
       metrics,
       appendices,
+      scorecard,
+      facilitationKit,
+      executiveDashboard,
+      maturityRoadmap,
+      procurementBrief,
     };
 
     this.reports.set(reportId, report);
@@ -898,6 +995,252 @@ Total Estimated Impact: $1.2M - $1.5M (excluding potential fines)`,
     }
 
     return appendices;
+  }
+
+  private buildScorecard(
+    reportType: string,
+    incidents: IncidentSummary[],
+    metrics: SecurityMetrics
+  ): ScorecardOverview {
+    const criticalIncidents = incidents.filter((incident) => incident.severity === "Critical");
+    const blueTeamLessons = [
+      "Automate credential reset workflow to reduce containment lag",
+      "Strengthen log retention to support forensics",
+      "Instrument privileged activity dashboards for real-time review",
+    ];
+
+    return {
+      exerciseSummary: `${reportType.toUpperCase()} review covers ${incidents.length} incidents with ${criticalIncidents.length} critical cases; current mean detection latency is ${metrics.mttd}h and containment occurs in ${metrics.mttr}h on average.`,
+      metrics: {
+        detectionLatencyHours: metrics.mttd,
+        containmentTimeHours: metrics.mttr,
+        eradicationTimeHours: Math.round(metrics.mttr * 1.4 * 10) / 10,
+      },
+      redTeam: {
+        category: "Red Team",
+        detectionLatency: `${metrics.mttd}h (goal < 12h)`,
+        containmentPerformance: `${metrics.mttr}h to trigger purple-team handoff`,
+        lessonsLearned: [
+          "Adaptive playbooks mapped to real adversaries increase realism",
+          "Need faster change control approvals to simulate exploit weaponisation",
+          "Document command-chain outputs for future automation",
+        ],
+        nextSteps: [
+          "Publish updated adversary profiles with sector overlays",
+          "Integrate CyberSim command-chain exports into red-team wiki",
+        ],
+      },
+      blueTeam: {
+        category: "Blue Team",
+        detectionLatency: `${metrics.mttd}h to first detection event`,
+        containmentPerformance: `${metrics.mttr}h containment, ${Math.round(metrics.mttr * 1.2)}h eradication`,
+        lessonsLearned: blueTeamLessons,
+        nextSteps: [
+          "Deploy detection artifacts supplied in network analysis",
+          "Run tabletop focusing on DNS telemetry gaps",
+          "Align SIEM dashboards with MITRE heatmap",
+        ],
+      },
+      purpleTeam: {
+        category: "Purple Team",
+        detectionLatency: `${Math.round(metrics.mttd / 2)}h in guided exercises`,
+        containmentPerformance: "Joint containment achieved in < 10h during facilitated sessions",
+        lessonsLearned: [
+          "Joint runbooks accelerate response alignment",
+          "Need pre-approved automation hooks for containment",
+        ],
+        nextSteps: [
+          "Schedule monthly purple drills using facilitation kit",
+          "Publish cross-team success metrics to leadership dashboard",
+        ],
+      },
+    };
+  }
+
+  private buildFacilitationKit(
+    reportType: string,
+    incidents: IncidentSummary[]
+  ): FacilitationKit {
+    const primaryIncident = incidents[0] || {
+      incidentId: "INC-TRAIN-000",
+      title: "Simulated Incident",
+      severity: "High",
+      status: "Planned",
+      brief: "Synthetic tabletop scenario",
+    };
+
+    return {
+      kickoffPrompt:
+        "You are facilitating a joint red/blue exercise in an authorised lab. Emphasise defensive learning outcomes and ensure all actions remain simulated.",
+      scenarioSeed: `Invoke create_scenario with adversary_profile=apt29, sector='${primaryIncident.title.toLowerCase().includes("ransomware") ? "finance" : "enterprise"}', difficulty='advanced'.`,
+      teleprompterNotes: [
+        "Frame objectives: dwell time reduction, containment coordination, executive storytelling",
+        "Reinforce safety guardrails and simulated payload policy",
+        "Observe for detection gaps matching MITRE heatmap",
+        "Capture action items live for after-action review",
+      ],
+      agenda: [
+        {
+          phase: "Kickoff & Context",
+          durationMinutes: 10,
+          objective: "Align participants on scenario boundaries and goals",
+          cues: ["Outline authorised lab scope", "Confirm comms channels"],
+        },
+        {
+          phase: "Adversary Simulation",
+          durationMinutes: 20,
+          objective: "Run command-chain walk-through from create_scenario + simulate_attack",
+          cues: ["Highlight pseudo commands", "Capture detection opportunities"],
+        },
+        {
+          phase: "Blue-Team Response",
+          durationMinutes: 20,
+          objective: "Execute detection artifacts and triage runbooks",
+          cues: ["Map alerts to MITRE heatmap", "Record timing metrics"],
+        },
+        {
+          phase: "Executive Debrief",
+          durationMinutes: 10,
+          objective: "Summarise impact, risk, and roadmap for leadership",
+          cues: ["Use executive dashboard talking points", "Review next steps"],
+        },
+      ],
+    };
+  }
+
+  private buildExecutiveDashboard(
+    riskAssessment: RiskAssessment,
+    metrics: SecurityMetrics
+  ): ExecutiveDashboard {
+    return {
+      riskHeadline: `Risk posture is ${riskAssessment.overallRiskLevel}; dwell time averages ${metrics.mttd}h with containment in ${metrics.mttr}h.`,
+      downtimeEstimateHours: 48,
+      financialExposureMillions: 4.2,
+      customerImpact: "Customer communications triggered for high-risk incidents; retention risk currently 5-10%",
+      heatmap: [
+        {
+          dimension: "Identity & Access",
+          status: "Critical",
+          notes: "MFA coverage at 45% for privileged accounts",
+        },
+        {
+          dimension: "Detection & Response",
+          status: "At Risk",
+          notes: "MTTD exceeds 24h benchmark; automation backlog persists",
+        },
+        {
+          dimension: "Resilience",
+          status: "On Track",
+          notes: "Backups restored within RTO; need immutable copies",
+        },
+        {
+          dimension: "Governance",
+          status: "At Risk",
+          notes: "Policy updates pending for tabletop learnings",
+        },
+      ],
+      nextBoardActions: [
+        "Approve funding for vulnerability management automation",
+        "Mandate organisation-wide MFA completion by next quarter",
+        "Track purple-team metrics in quarterly risk committee",
+      ],
+    };
+  }
+
+  private buildMaturityRoadmap(): MaturityRoadmap {
+    return {
+      frameworkAlignment: [
+        {
+          framework: "NIST CSF",
+          currentLevel: "Tier 2 - Risk Informed",
+          targetLevel: "Tier 3 - Repeatable",
+          nextSteps: [
+            "Formalise detection engineering lifecycle",
+            "Automate incident response evidence collection",
+            "Integrate CyberSim exercises into risk register",
+          ],
+        },
+        {
+          framework: "CMMC 2.0",
+          currentLevel: "Level 1",
+          targetLevel: "Level 2",
+          nextSteps: [
+            "Implement continuous monitoring for controlled unclassified information",
+            "Document role-based response playbooks",
+            "Validate supply-chain security controls with CyberSim benchmarks",
+          ],
+        },
+        {
+          framework: "ISO 27001",
+          currentLevel: "In Progress",
+          targetLevel: "Certified",
+          nextSteps: [
+            "Complete risk treatment plan for identity controls",
+            "Update statement of applicability with purple-team outcomes",
+          ],
+        },
+      ],
+      milestones: [
+        {
+          quarter: "Q1",
+          theme: "Detection Engineering Sprint",
+          owner: "SOC Manager",
+          deliverables: [
+            "Deploy Sigma and Splunk content to production",
+            "Launch weekly threat hunting alignment meeting",
+          ],
+        },
+        {
+          quarter: "Q2",
+          theme: "Automation & SOAR",
+          owner: "Security Automation Lead",
+          deliverables: [
+            "Integrate CyberSim HTTP bridge into SOAR",
+            "Automate containment workflows for ransomware playbooks",
+          ],
+        },
+        {
+          quarter: "Q3",
+          theme: "Governance & Training",
+          owner: "CISO",
+          deliverables: [
+            "Publish updated policy & ethics addendum",
+            "Run executive tabletop using facilitation kit",
+          ],
+        },
+      ],
+    };
+  }
+
+  private buildProcurementBrief(): ProcurementBrief {
+    return {
+      summary:
+        "CyberSim Pro provides regulated organisations with auditable adversary simulations, adaptive detection artefacts, and governance collateral sufficient for procurement review.",
+      faqs: [
+        {
+          question: "Does CyberSim Pro operate only in lab environments?",
+          answer: "Yes. The platform enforces simulated payloads and supports stdio or HTTP bridges inside isolated labs or sandboxes.",
+        },
+        {
+          question: "How are logs captured for compliance?",
+          answer: "All tool invocations are written to append-only JSONL audit logs with timestamps, sanitized arguments, and termination reasons.",
+        },
+        {
+          question: "What integrations exist for existing SOC tooling?",
+          answer: "Detection artefacts include ready-to-deploy Sigma, Splunk, and Sentinel content; integration hooks cover SOAR connectors and APIs.",
+        },
+      ],
+      legalConsiderations: [
+        "Capability restricted to authorised red/blue team training as defined in usage policy",
+        "Supports evidence retention requirements (PCI DSS, HIPAA, SOX) via structured audit logging",
+        "Includes policy & ethics guide aligning with acceptable use and regulatory safeguards",
+      ],
+      riskControls: [
+        "Role-based prompt templates enforce defensive framing",
+        "Stop_simulation kill-switch with immutable logging",
+        "Environment variable controls for API key enforcement and IP allow lists",
+      ],
+    };
   }
 
   private createExecutiveSummary(

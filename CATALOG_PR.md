@@ -2,6 +2,7 @@ Title: Add CyberSim Pro MCP server (security training, simulation, IR & forensic
 
 Summary
 - Name: CyberSim Pro
+- Version: v1.1.0 (adaptive adversaries & executive scorecards)
 - Image: hamcodes/cybersim-pro-mcp:latest
 - Repo: https://github.com/kayembahamid/cybersim-pro
 - Icon: https://raw.githubusercontent.com/kayembahamid/cybersim-pro/main/cybersim-pro-mcp/assets/icon.svg
@@ -13,7 +14,10 @@ CyberSim Pro is a professional-grade MCP server that equips AI assistants with s
 - Analyze network segments for anomalies, vulnerabilities, and threats
 - Conduct incident response investigations with timelines and evidence
 - Perform digital forensics on memory, disk, logs, registry artifacts
-- Generate executive and technical security reports
+- Generate executive and technical security reports with purple-team scorecards, facilitation kits, and executive dashboards
+- Export detection engineering packs (Sigma, Splunk, KQL) and MITRE ATT&CK/D3FEND heatmaps
+- Leverage plugin-based threat intel (sector-specific CVEs, community packs) with immutable audit logging
+- Replay real telemetry against simulations, capture readiness metrics, enforce RBAC/approvals, and sync compensating controls into enterprise risk registers
 
 Docker usage
 - stdio (for MCP clients like Claude/Cline):
@@ -32,4 +36,3 @@ See mcp-catalog.json in the repository root of the server folder (cybersim-pro-m
 Notes
 - Image includes OCI labels and supports both stdio and HTTP modes.
 - Tested locally and published to Docker Hub under hamcodes.
-

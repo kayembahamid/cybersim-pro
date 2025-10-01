@@ -174,17 +174,22 @@ If using Cline instead of Claude Desktop:
 
 Open Claude/Cline and try these test commands:
 
-**Test 1: Create a Simple Scenario**
+**Test 1: Create a Scenario with Adaptive Adversary**
 ```
-Create a beginner-level phishing scenario for testing
-```
-
-**Test 2: Network Analysis**
-```
-Analyze the DMZ network segment for 10 minutes focusing on anomalies
+Create an advanced ransomware scenario for the finance sector using adversary profile FIN7 and include CVE-2024-21410
 ```
 
-**Test 3: Forensics**
+**Test 2: Network Analysis with Detection Artefacts**
+```
+Analyze the DMZ network segment for 30 minutes focusing on anomalies and threats, then list the Sigma and Splunk detection packs it produces
+```
+
+**Test 3: Executive Report & Facilitation Kit**
+```
+Generate an executive report covering incidents INC-2024-001 and INC-2024-002 in facilitation mode
+```
+
+**Test 4: Forensics**
 ```
 Perform a quick forensics analysis on disk artifacts for system WORKSTATION-001
 ```

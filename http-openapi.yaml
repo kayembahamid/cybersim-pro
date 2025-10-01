@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: CyberSim Pro HTTP Bridge
-  version: 1.0.0
-  description: HTTP endpoints mirroring CyberSim Pro MCP tools for non‑MCP clients and GPT Actions.
+  version: 1.1.0
+  description: HTTP endpoints mirroring CyberSim Pro MCP tools for non‑MCP clients and GPT Actions. Version 1.1 introduces adaptive adversary profiles, command-chain drill-down, detection engineering artefacts, and executive scorecards.
 servers:
   - url: http://localhost:8787
 components:
@@ -39,9 +39,21 @@ paths:
                   enum: [beginner, intermediate, advanced, expert]
                 environment:
                   type: string
+                  description: Target environment context (e.g. corporate, cloud, OT)
+                sector:
+                  type: string
+                  description: Business sector or mission domain to tailor threat intel (finance, healthcare, gov, etc)
+                adversary_profile:
+                  type: string
+                  description: Explicit adversary profile ID (apt29, fin7, ...). Defaults to sector-driven mapping.
+                focus_cves:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional CVE identifiers to emphasise in the generated scenario.
       responses:
         '200':
-          description: Scenario created
+          description: Scenario created, including adversary profile context, plugin insights, and targeted CVEs.
   /tool/simulate_attack:
     post:
       summary: Simulate a cyberattack
@@ -62,9 +74,15 @@ paths:
                 intensity:
                   type: string
                   enum: [low, medium, high, critical]
+                operator:
+                  type: object
+                  description: Operator context (id, role) enforcing RBAC policies
+                approval_token:
+                  type: string
+                  description: Approval token required when RBAC policy mandates dual control
       responses:
         '200':
-          description: Simulation started
+          description: Simulation started; response contains per-phase commandChain entries and MITRE mappings.
   /tool/analyze_network:
     post:
       summary: Analyze network traffic
@@ -156,6 +174,137 @@ paths:
                     type: string
                 include_recommendations:
                   type: boolean
+                mode:
+                  type: string
+                  description: Optional rendering hint (standard, facilitation, executive).
       responses:
         '200':
-          description: Report generated
+          description: Report generated with executive dashboard, purple-team scorecard, facilitation kit, maturity roadmap, and procurement brief.
+  /tool/stop_simulation:
+    post:
+      summary: Stop one or more active simulations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                simulation_id:
+                  type: string
+                  description: Identifier returned by simulate_attack. If omitted, all active simulations are stopped.
+                reason:
+                  type: string
+                  description: Reason for termination captured in the audit log.
+                operator:
+                  type: object
+                  description: Operator context (id, role, approvals).
+                approval_token:
+                  type: string
+                  description: Approval token required when RBAC policy mandates dual control.
+      responses:
+        '200':
+          description: Termination summary with affected simulation IDs.
+  /tool/replay_telemetry:
+    post:
+      summary: Replay telemetry exports against a simulation to identify coverage gaps
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [simulation_id]
+              properties:
+                simulation_id:
+                  type: string
+                scenario_id:
+                  type: string
+                telemetry:
+                  type: array
+                  description: Array of telemetry events (EDR/SIEM/PCAP extract).
+                  items:
+                    type: object
+                telemetry_base64:
+                  type: string
+                  description: Base64 encoded JSON array of telemetry events.
+                operator:
+                  type: object
+                approval_token:
+                  type: string
+      responses:
+        '200':
+          description: Telemetry replay analysis including matched techniques and detection gaps.
+  /tool/list_metrics:
+    post:
+      summary: Summarise readiness metrics and historical trends
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Metrics summary including averages and recent trend entries.
+  /tool/export_controls:
+    post:
+      summary: Export accumulated compensating-control recommendations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Array of control recommendations suitable for SIEM/SOAR ingestion.
+  /tool/sync_risk_register:
+    post:
+      summary: Generate payloads for updating enterprise risk registers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [system, incident_id]
+              properties:
+                system:
+                  type: string
+                  enum: [servicenow, archer, onetrust, custom]
+                incident_id:
+                  type: string
+                priority:
+                  type: string
+                owner:
+                  type: string
+                due_date:
+                  type: string
+      responses:
+        '200':
+          description: REST payload and instructions for the chosen risk platform.
+  /tool/generate_validation_report:
+    post:
+      summary: Produce a hashed audit digest for third-party validation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Validation digest with entry counts, SHA-256 hash, and sample events.

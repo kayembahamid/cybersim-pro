@@ -8,6 +8,10 @@ export interface NetworkAnalysisResult {
   threats: ThreatIndicator[];
   recommendations: string[];
   topology: NetworkTopology;
+  detectionArtifacts: DetectionArtifactSet;
+  mitreHeatmap: MitreHeatmapEntry[];
+  gapAnalysis: DetectionGap[];
+  integrationHooks: IntegrationHook[];
 }
 
 export interface NetworkStatistics {
@@ -97,6 +101,52 @@ export interface Service {
   banner: string;
 }
 
+export interface DetectionArtifactSet {
+  sigma: DetectionRuleArtifact[];
+  splunk: DetectionRuleArtifact[];
+  kql: DetectionRuleArtifact[];
+  playbooks: DetectionPlaybook[];
+}
+
+export interface DetectionRuleArtifact {
+  id: string;
+  title: string;
+  query: string;
+  description: string;
+  references: string[];
+  tags: string[];
+}
+
+export interface DetectionPlaybook {
+  name: string;
+  focus: string;
+  steps: string[];
+}
+
+export interface MitreHeatmapEntry {
+  tactic: string;
+  techniqueId: string;
+  technique: string;
+  coverage: "covered" | "partial" | "missing";
+  detectionAsset?: string;
+  d3fendMappings: string[];
+}
+
+export interface DetectionGap {
+  area: string;
+  severity: "low" | "medium" | "high";
+  description: string;
+  recommendations: string[];
+}
+
+export interface IntegrationHook {
+  platform: string;
+  type: string;
+  description: string;
+  configuration: Record<string, string>;
+  samplePayload: Record<string, unknown>;
+}
+
 export class NetworkSimulator {
   private activeAnalyses: Map<string, NetworkAnalysisResult> = new Map();
 
@@ -135,6 +185,20 @@ export class NetworkSimulator {
       threats
     );
 
+    const detectionArtifacts = this.generateDetectionArtifacts(
+      networkSegment,
+      anomalies,
+      vulnerabilities,
+      threats,
+      focus
+    );
+    const mitreHeatmap = this.buildMitreHeatmap(threats, detectionArtifacts);
+    const gapAnalysis = this.buildGapAnalysis(mitreHeatmap, focus);
+    const integrationHooks = this.buildIntegrationHooks(
+      networkSegment,
+      detectionArtifacts
+    );
+
     const result: NetworkAnalysisResult = {
       segmentId: networkSegment,
       duration,
@@ -145,6 +209,10 @@ export class NetworkSimulator {
       threats,
       recommendations,
       topology,
+      detectionArtifacts,
+      mitreHeatmap,
+      gapAnalysis,
+      integrationHooks,
     };
 
     this.activeAnalyses.set(analysisId, result);
@@ -546,6 +614,427 @@ export class NetworkSimulator {
     }
 
     return recommendations;
+  }
+
+  private generateDetectionArtifacts(
+    segment: string,
+    anomalies: Anomaly[],
+    vulnerabilities: Vulnerability[],
+    threats: ThreatIndicator[],
+    focus: string[]
+  ): DetectionArtifactSet {
+    const sigma: DetectionRuleArtifact[] = [];
+    const splunk: DetectionRuleArtifact[] = [];
+    const kql: DetectionRuleArtifact[] = [];
+    const playbooks: DetectionPlaybook[] = [];
+
+    const hasBeaconing = threats.some((threat) => threat.mitreMapping.startsWith("T1071"));
+    const hasDnsTunneling = anomalies.some((anomaly) => anomaly.type === "DNS Tunneling");
+    const hasLateralMovement = anomalies.some((anomaly) => anomaly.type === "Lateral Movement");
+    const hasExploitAttempts = threats.some((threat) => threat.mitreMapping.startsWith("T1190"));
+
+    if (hasBeaconing) {
+      const sigmaBeaconRule = [
+        "title: Suspicious Low-Volume HTTPS Beaconing",
+        "id: sigma-network-beaconing",
+        "status: experimental",
+        "description: Detects periodic low-volume HTTPS connections indicative of command and control.",
+        "logsource:",
+        "  product: zeek",
+        "  service: http",
+        "detection:",
+        "  selection:",
+        "    method: GET",
+        "    resp_bytes|lt: 1500",
+        "    request_body_len: 0",
+        "  timeframe: 15m",
+        "  condition: selection",
+        "fields:",
+        "  - id.orig_h",
+        "  - id.resp_h",
+        "  - ts",
+        "  - user_agent",
+        "tags:",
+        "  - attack.T1071.001",
+      ].join("\n");
+
+      sigma.push({
+        id: "sigma-network-beaconing",
+        title: "Suspicious Low-Volume HTTPS Beaconing",
+        query: sigmaBeaconRule,
+        description: "Flags beacon-style HTTPS sessions from the segment for hunt teams.",
+        references: ["https://attack.mitre.org/techniques/T1071/001/"],
+        tags: ["attack.T1071.001", `segment.${segment}`],
+      });
+
+      splunk.push({
+        id: "splunk_beaconing_search",
+        title: "Beaconing Pattern - HTTPS",
+        query:
+          "| tstats `summariesonly` count from datamodel=Network_Traffic.All_Traffic where All_Traffic.dest_port=443 by _time span=5m All_Traffic.dest_ip All_Traffic.src_ip" +
+          "\n| eventstats avg(count) AS avg_count stdev(count) AS stdev_count BY All_Traffic.src_ip All_Traffic.dest_ip" +
+          "\n| where count < avg_count + (stdev_count * 0.2) AND count > 0" +
+          "\n| eval tactic=\"Command and Control\", technique=\"T1071.001\"",
+        description: "Highlights periodic low-volume web traffic that could represent beaconing.",
+        references: ["https://attack.mitre.org/techniques/T1071/001/"],
+        tags: ["attack.T1071.001", "splunk", `segment.${segment}`],
+      });
+
+      kql.push({
+        id: "sentinel_beaconing_kql",
+        title: "Beaconing Pattern - Microsoft Sentinel",
+        query:
+          "CommonSecurityLog\n| where DestinationPort == 443 and RequestClientApplication != ''" +
+          "\n| summarize Count = count(), AvgBytes = avg(SentBytes) by bin(TimeGenerated, 5m), DestinationIP, SourceIP, RequestClientApplication" +
+          "\n| where AvgBytes < 1500" +
+          "\n| extend Tactic='Command and Control', TechniqueId='T1071.001'",
+        description: "Detects recurring HTTPS sessions with small payloads.",
+        references: ["https://learn.microsoft.com/azure/sentinel/"],
+        tags: ["attack.T1071.001", "sentinel", `segment.${segment}`],
+      });
+
+      playbooks.push({
+        name: "C2 Beacon Triage",
+        focus: "Command and Control",
+        steps: [
+          "Validate destination IP/domain reputation",
+          "Capture full packet trace for suspect connections",
+          "Quarantine impacted host and initiate EDR triage",
+        ],
+      });
+    }
+
+    if (hasDnsTunneling) {
+      sigma.push({
+        id: "sigma-dns-tunneling",
+        title: "High Entropy DNS Queries",
+        query: [
+          "title: High Entropy DNS Queries",
+          "id: sigma-dns-tunneling",
+          "logsource:",
+          "  product: zeek",
+          "  service: dns",
+          "detection:",
+          "  selection:",
+          "    query|re: '[A-Za-z0-9]{40,}'",
+          "  condition: selection",
+          "tags:",
+          "  - attack.T1071",
+        ].join("\n"),
+        description: "Detects DNS queries with high entropy indicative of tunneling.",
+        references: ["https://attack.mitre.org/techniques/T1071/004/"],
+        tags: ["attack.T1071.004", `segment.${segment}`],
+      });
+
+      splunk.push({
+        id: "splunk_dns_entropy",
+        title: "DNS Entropy",
+        query:
+          "index=dns sourcetype=zeek_dns" +
+          "\n| eval label=if(strlen(query)>40,\"long\",\"short\")" +
+          "\n| where label=\"long\"" +
+          "\n| stats count by src_ip, query" +
+          "\n| where count > 5" +
+          "\n| eval tactic=\"Command and Control\", technique=\"T1071.004\"",
+        description: "Finds repeated long DNS queries per host.",
+        references: ["https://attack.mitre.org/techniques/T1071/004/"],
+        tags: ["attack.T1071.004"],
+      });
+
+      playbooks.push({
+        name: "DNS Tunnel Containment",
+        focus: "DNS",
+        steps: [
+          "Block destination domain or IP",
+          "Capture forensic image of DNS client host",
+          "Review outbound firewall rules for DNS over HTTPS",
+        ],
+      });
+    }
+
+    if (hasLateralMovement) {
+      kql.push({
+        id: "sentinel_smb_lateral",
+        title: "SMB Lateral Movement",
+        query:
+          "SecurityEvent\n| where EventID in (5140, 4624) and AccountType == 'User'" +
+          "\n| summarize Attempts=count() by Computer, SubjectAccount, EventID" +
+          "\n| where Attempts > 10" +
+          "\n| extend Tactic='Lateral Movement', TechniqueId='T1021.002'",
+        description: "Surfaces abnormal SMB share access volume indicative of lateral movement.",
+        references: ["https://attack.mitre.org/techniques/T1021/002/"],
+        tags: ["attack.T1021.002"],
+      });
+
+      playbooks.push({
+        name: "Contain SMB Lateral Movement",
+        focus: "SMB",
+        steps: [
+          "Disable or restrict administrative shares on impacted nodes",
+          "Rotate credentials abused in the movement",
+          "Deploy additional honeypot shares for continued monitoring",
+        ],
+      });
+    }
+
+    if (hasExploitAttempts || focus.includes("vulnerabilities")) {
+      sigma.push({
+        id: "sigma-web-exploit",
+        title: "Web Application Exploit Attempt",
+        query: [
+          "title: Web Application Exploit Attempt",
+          "logsource:",
+          "  product: apache",
+          "  service: access",
+          "detection:",
+          "  selection:",
+          "    request|contains: " + '"union select"',
+          "  timeframe: 5m",
+          "  condition: selection",
+          "tags:",
+          "  - attack.T1190",
+        ].join("\n"),
+        description: "Detects SQL injection style payloads in HTTP traffic.",
+        references: ["https://attack.mitre.org/techniques/T1190/"],
+        tags: ["attack.T1190"],
+      });
+
+      splunk.push({
+        id: "splunk_http_injection",
+        title: "HTTP Injection Attempts",
+        query:
+          "index=web sourcetype=access_combined" +
+          "\n| search (" + '"union select"' + " OR " + '"or 1=1"' + ")" +
+          "\n| stats count by clientip, uri" +
+          "\n| eval tactic=\"Initial Access\", technique=\"T1190\"",
+        description: "Counts SQL injection signatures hitting web tier.",
+        references: ["https://owasp.org/www-community/attacks/SQL_Injection"],
+        tags: ["attack.T1190"],
+      });
+    }
+
+    if (sigma.length === 0 && splunk.length === 0 && kql.length === 0) {
+      sigma.push({
+        id: "sigma-generic-network",
+        title: "Generic Network Anomaly",
+        query: "title: Generic Network Anomaly\ndescription: Placeholder rule for baseline monitoring",
+        description: "Template sigma rule to customise for the segment.",
+        references: [],
+        tags: ["attack.TA0000"],
+      });
+    }
+
+    if (playbooks.length === 0) {
+      playbooks.push({
+        name: "Standard SOC Runbook",
+        focus: "Network Investigation",
+        steps: [
+          "Validate alert fidelity with packet capture",
+          "Consult threat intel for matching indicators",
+          "Document findings in case management platform",
+        ],
+      });
+    }
+
+    return { sigma, splunk, kql, playbooks };
+  }
+
+  private buildMitreHeatmap(
+    threats: ThreatIndicator[],
+    artifacts: DetectionArtifactSet
+  ): MitreHeatmapEntry[] {
+    const coverageByTechnique: Map<string, { asset: string; coverage: "covered" | "partial" }> =
+      new Map();
+
+    const registerArtifacts = (
+      rules: DetectionRuleArtifact[],
+      assetLabel: string
+    ) => {
+      rules.forEach((rule) => {
+        rule.tags
+          .filter((tag) => tag.startsWith("attack."))
+          .forEach((tag) => {
+            const techniqueId = tag.replace("attack.", "").toUpperCase();
+            const existing = coverageByTechnique.get(techniqueId);
+            if (!existing) {
+              coverageByTechnique.set(techniqueId, { asset: `${assetLabel}: ${rule.title}`, coverage: "covered" });
+            }
+          });
+      });
+    };
+
+    registerArtifacts(artifacts.sigma, "Sigma");
+    registerArtifacts(artifacts.splunk, "Splunk");
+    registerArtifacts(artifacts.kql, "Sentinel");
+
+    const heatmap: Map<string, MitreHeatmapEntry> = new Map();
+
+    threats.forEach((threat) => {
+      const [techniqueIdRaw, techniqueNameRaw] = threat.mitreMapping.split(" - ");
+      const techniqueId = techniqueIdRaw.trim().toUpperCase();
+      const techniqueName = techniqueNameRaw || "Unknown";
+      const coverage = coverageByTechnique.get(techniqueId);
+      heatmap.set(techniqueId, {
+        tactic: this.inferTacticFromTechnique(techniqueId),
+        techniqueId,
+        technique: techniqueName,
+        coverage: coverage ? coverage.coverage : "missing",
+        detectionAsset: coverage?.asset,
+        d3fendMappings: this.mapTechniqueToD3fend(techniqueId),
+      });
+    });
+
+    coverageByTechnique.forEach((coverage, techniqueId) => {
+      if (!heatmap.has(techniqueId)) {
+        heatmap.set(techniqueId, {
+          tactic: this.inferTacticFromTechnique(techniqueId),
+          techniqueId,
+          technique: "Proactive Detection",
+          coverage: coverage.coverage,
+          detectionAsset: coverage.asset,
+          d3fendMappings: this.mapTechniqueToD3fend(techniqueId),
+        });
+      }
+    });
+
+    return Array.from(heatmap.values());
+  }
+
+  private buildGapAnalysis(
+    mitreHeatmap: MitreHeatmapEntry[],
+    focus: string[]
+  ): DetectionGap[] {
+    const gaps: DetectionGap[] = [];
+
+    mitreHeatmap
+      .filter((entry) => entry.coverage === "missing")
+      .forEach((entry) => {
+        gaps.push({
+          area: `${entry.tactic} / ${entry.technique}`,
+          severity: "high",
+          description: `No telemetry mapped to ${entry.techniqueId}; analysts should create coverage before next engagement.`,
+          recommendations: [
+            "Develop detection logic leveraging available telemetry",
+            "Cross-check with purple-team to validate detection fidelity",
+          ],
+        });
+      });
+
+    if (focus.includes("vulnerabilities") && !mitreHeatmap.some((entry) => entry.techniqueId.startsWith("T1190"))) {
+      gaps.push({
+        area: "Initial Access / Exploit Public-Facing Application",
+        severity: "medium",
+        description: "Exploit detection coverage is lacking despite vulnerability focus.",
+        recommendations: [
+          "Instrument WAF/Reverse proxy logs for exploit patterns",
+          "Add behavioural analytics for anomalous HTTP verbs",
+        ],
+      });
+    }
+
+    if (focus.includes("anomalies") && !mitreHeatmap.some((entry) => entry.techniqueId.startsWith("T1071"))) {
+      gaps.push({
+        area: "Command and Control",
+        severity: "medium",
+        description: "C2 detection coverage is minimal while anomaly focus requested network telemetry.",
+        recommendations: [
+          "Enable JA3/JA3S fingerprinting",
+          "Collect proxy logs for advanced detections",
+        ],
+      });
+    }
+
+    return gaps;
+  }
+
+  private buildIntegrationHooks(
+    segment: string,
+    artifacts: DetectionArtifactSet
+  ): IntegrationHook[] {
+    const hooks: IntegrationHook[] = [];
+
+    if (artifacts.splunk.length > 0) {
+      hooks.push({
+        platform: "Splunk Enterprise Security",
+        type: "Saved Search",
+        description: "Deploys beaconing saved search with adaptive response for auto ticketing.",
+        configuration: {
+          searchName: "CyberSim - HTTPS Beaconing",
+          schedule: "*/5 * * * *",
+          notableIndex: "notable",
+          riskObject: segment,
+        },
+        samplePayload: {
+          savedsearch: "CyberSim - HTTPS Beaconing",
+          query: artifacts.splunk[0].query,
+        },
+      });
+    }
+
+    if (artifacts.kql.length > 0) {
+      hooks.push({
+        platform: "Microsoft Sentinel",
+        type: "Analytics Rule",
+        description: "Create scheduled analytics rule for SMB lateral movement with automation hooks.",
+        configuration: {
+          ruleTemplate: "Scheduled",
+          frequency: "PT5M",
+          severity: "High",
+          tactic: "Lateral Movement",
+        },
+        samplePayload: {
+          displayName: "CyberSim SMB Lateral Movement",
+          query: artifacts.kql[0].query,
+          tactics: ["LateralMovement"],
+        },
+      });
+    }
+
+    hooks.push({
+      platform: "Cortex XSOAR",
+      type: "Automation Playbook",
+      description: "Purple-team runbook to ingest CyberSim detections and orchestrate containment",
+      configuration: {
+        playbook: "CyberSim-Network-Containment",
+        inputs: "network_segment, detection_id, severity",
+        notes: "Requires HTTPS integration with CyberSim HTTP bridge",
+      },
+      samplePayload: {
+        inputs: {
+          network_segment: segment,
+          detection_id: artifacts.sigma[0]?.id || "sigma-generic-network",
+          severity: "High",
+        },
+      },
+    });
+
+    return hooks;
+  }
+
+  private inferTacticFromTechnique(techniqueId: string): string {
+    const prefix = techniqueId.split(".")[0];
+    const mapping: Record<string, string> = {
+      T1071: "Command and Control",
+      T1021: "Lateral Movement",
+      T1190: "Initial Access",
+      T1496: "Impact",
+      T1498: "Impact",
+      T1568: "Command and Control",
+      T1505: "Persistence",
+    };
+    return mapping[prefix] || "Unknown";
+  }
+
+  private mapTechniqueToD3fend(techniqueId: string): string[] {
+    const prefix = techniqueId.split(".")[0];
+    const mapping: Record<string, string[]> = {
+      T1071: ["D3-CORR", "D3-CMTA"],
+      T1021: ["D3-SYSM"],
+      T1190: ["D3-PTCH"],
+      T1496: ["D3-RCFG"],
+      T1568: ["D3-DNSM"],
+    };
+    return mapping[prefix] || ["D3-GNRL"];
   }
 
   getAnalysis(analysisId: string): NetworkAnalysisResult | undefined {

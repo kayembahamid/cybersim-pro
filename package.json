@@ -1,6 +1,6 @@
 {
   "name": "cybersim-pro-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Professional cybersecurity training and simulation MCP server",
   "type": "module",
   "main": "build/index.js",

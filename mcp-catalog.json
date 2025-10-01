@@ -1,7 +1,7 @@
 {
   "id": "cybersim-pro-mcp",
   "name": "CyberSim Pro",
-  "description": "Cybersecurity training and simulation MCP server: scenarios, threat simulation, network analysis, incident response, forensics, and reporting.",
+  "description": "Cybersecurity training & simulation MCP server: adaptive adversary scenarios, command-chain drill-down, detection engineering packs, incident response, forensics, reporting, and executive governance collateral.",
   "image": "hamcodes/cybersim-pro-mcp:latest",
   "icon": "https://raw.githubusercontent.com/kayembahamid/cybersim-pro/main/cybersim-pro-mcp/assets/icon.svg",
   "instructions": {

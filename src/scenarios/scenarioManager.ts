@@ -1,8 +1,27 @@
+import { AdversaryProfile, getAdversaryProfile, listAdversaryProfiles } from "../data/adversaryProfiles.js";
+import { PluginRegistry, ThreatIntelContribution } from "../utils/pluginRegistry.js";
+
+export interface ThreatIntelSnapshot {
+  actor: string;
+  aliases: string[];
+  motivation: string;
+  region: string;
+  recentCampaigns: string[];
+  exploitCves: string[];
+  preferredTactics: string[];
+  intelligenceDate: string;
+  detectionOpportunities: string[];
+  countermeasures: string[];
+  references: string[];
+  pluginInsights: ThreatIntelContribution[];
+}
+
 export interface SecurityScenario {
   id: string;
   type: string;
   difficulty: string;
   environment: string;
+  sector: string;
   description: string;
   objectives: string[];
   attackVectors: AttackVector[];
@@ -11,6 +30,9 @@ export interface SecurityScenario {
   successCriteria: string[];
   hints: Hint[];
   mitreTactics: string[];
+  adversaryProfile?: AdversaryProfile;
+  threatIntel: ThreatIntelSnapshot;
+  targetedCves: string[];
 }
 
 export interface AttackVector {
@@ -41,23 +63,43 @@ export interface Hint {
   revealCondition: string;
 }
 
+interface ScenarioOptions {
+  sector?: string;
+  adversaryProfile?: string;
+  cveFocus?: string[];
+}
+
 export class SecurityScenarioManager {
   private scenarios: Map<string, SecurityScenario> = new Map();
   private scenarioCounter: number = 0;
+  private pluginRegistry: PluginRegistry = PluginRegistry.getInstance();
 
   async createScenario(
     type: string,
     difficulty: string,
-    environment?: string
+    environment?: string,
+    options: ScenarioOptions = {}
   ): Promise<SecurityScenario> {
     const scenarioId = `SCN-${Date.now()}-${++this.scenarioCounter}`;
     const env = environment || "corporate";
+    const sector = options.sector || env;
+    const profile = this.resolveAdversaryProfile(type, sector, options.adversaryProfile);
+    const pluginInsights = this.pluginRegistry.collectThreatIntel({
+      scenarioType: type,
+      sector,
+      adversaryId: profile?.id,
+    });
+    const targetedCves = this.resolveTargetedCves(profile, options.cveFocus, pluginInsights);
 
     const scenario = this.generateScenarioTemplate(
       scenarioId,
       type,
       difficulty,
-      env
+      env,
+      sector,
+      profile,
+      targetedCves,
+      pluginInsights
     );
 
     this.scenarios.set(scenarioId, scenario);
@@ -68,7 +110,11 @@ export class SecurityScenarioManager {
     id: string,
     type: string,
     difficulty: string,
-    environment: string
+    environment: string,
+    sector: string,
+    profile: AdversaryProfile | undefined,
+    targetedCves: string[],
+    pluginInsights: ThreatIntelContribution[]
   ): SecurityScenario {
     const templates: Record<string, any> = {
       phishing: {
@@ -543,15 +589,215 @@ export class SecurityScenarioManager {
       type,
       difficulty,
       environment,
-      description: template.description,
-      objectives: template.objectives,
-      attackVectors: template.attackVectors,
+      sector,
+      description: this.buildScenarioDescription(
+        template.description,
+        profile,
+        sector,
+        targetedCves,
+        pluginInsights
+      ),
+      objectives: this.applyObjectiveContext(
+        template.objectives,
+        profile,
+        sector,
+        pluginInsights
+      ),
+      attackVectors: this.applyAttackVectorContext(template.attackVectors, profile, targetedCves),
       defenses: template.defenses,
       timeline,
       successCriteria: this.generateSuccessCriteria(type, difficulty),
       hints,
-      mitreTactics: template.mitreTactics,
+      mitreTactics: this.mergeMitreTactics(template.mitreTactics, profile),
+      adversaryProfile: profile,
+      threatIntel: this.composeThreatIntelSnapshot(profile, targetedCves, pluginInsights),
+      targetedCves,
     };
+  }
+
+  private resolveAdversaryProfile(
+    type: string,
+    sector: string,
+    explicitKey?: string
+  ): AdversaryProfile | undefined {
+    if (explicitKey) {
+      return getAdversaryProfile(explicitKey) || undefined;
+    }
+
+    const normalizedSector = this.normalizeSector(sector);
+    const profiles = listAdversaryProfiles();
+    const sectorMatch = profiles.find((profile) =>
+      profile.targetSectors
+        .map((sectorKey) => this.normalizeSector(sectorKey))
+        .includes(normalizedSector)
+    );
+    if (sectorMatch) {
+      return sectorMatch;
+    }
+
+    if (type === "apt" || type === "data_breach") {
+      return getAdversaryProfile("apt29");
+    }
+
+    if (type === "ransomware" || type === "insider_threat") {
+      return getAdversaryProfile("fin7");
+    }
+
+    return undefined;
+  }
+
+  private resolveTargetedCves(
+    profile: AdversaryProfile | undefined,
+    cveFocus: string[] | undefined,
+    pluginInsights: ThreatIntelContribution[]
+  ): string[] {
+    const cves = new Set<string>();
+    profile?.exploitCves.forEach((cve) => cves.add(cve));
+    cveFocus?.forEach((cve) => cves.add(cve.toUpperCase()));
+    pluginInsights.forEach((insight) => {
+      insight.cves.forEach((cve) => cves.add(cve.toUpperCase()));
+    });
+    return Array.from(cves);
+  }
+
+  private composeThreatIntelSnapshot(
+    profile: AdversaryProfile | undefined,
+    targetedCves: string[],
+    pluginInsights: ThreatIntelContribution[]
+  ): ThreatIntelSnapshot {
+    if (profile) {
+      const pluginDetection = pluginInsights.flatMap((insight) => insight.detectionEnhancements);
+      return {
+        actor: profile.alias[0] || profile.id,
+        aliases: profile.alias,
+        motivation: profile.motivation,
+        region: profile.region,
+        recentCampaigns: profile.recentCampaigns,
+        exploitCves: targetedCves,
+        preferredTactics: profile.preferredTactics,
+        intelligenceDate: profile.lastUpdated,
+        detectionOpportunities: Array.from(
+          new Set([...profile.detectionOpportunities, ...pluginDetection])
+        ),
+        countermeasures: profile.countermeasures,
+        references: profile.references,
+        pluginInsights,
+      };
+    }
+
+    return {
+      actor: "Simulated Adversary",
+      aliases: [],
+      motivation: "Training",
+      region: "Global",
+      recentCampaigns: ["Composite scenario generated for lab purposes"],
+      exploitCves: targetedCves,
+      preferredTactics: ["TA0001", "TA0002", "TA0003"],
+      intelligenceDate: new Date().toISOString().split("T")[0],
+      detectionOpportunities: [
+        "Validate security monitoring against baseline attack chain",
+        "Capture telemetry for hunt templates",
+      ],
+      countermeasures: [
+        "Ensure multi-layered detections for MITRE ATT&CK coverage",
+        "Review tabletop outputs with detection engineering team",
+      ],
+      references: [],
+      pluginInsights,
+    };
+  }
+
+  private buildScenarioDescription(
+    baseDescription: string,
+    profile: AdversaryProfile | undefined,
+    sector: string,
+    targetedCves: string[],
+    pluginInsights: ThreatIntelContribution[]
+  ): string {
+    const sectorBlurb = ` Focus: ${sector} sector operations.`;
+    const profileBlurb = profile
+      ? ` Modeled on adversary playbook ${profile.alias[0] || profile.id.toUpperCase()}.`
+      : "";
+    const cveBlurb = targetedCves.length
+      ? ` CVE emphasis: ${targetedCves.join(", ")}.`
+      : "";
+    const pluginBlurb = pluginInsights.length
+      ? ` Plugin intel from ${pluginInsights.map((insight) => insight.providerName).join(", ")}.`
+      : "";
+    return `${baseDescription}${sectorBlurb}${profileBlurb}${cveBlurb}${pluginBlurb}`.trim();
+  }
+
+  private applyObjectiveContext(
+    objectives: string[],
+    profile: AdversaryProfile | undefined,
+    sector: string,
+    pluginInsights: ThreatIntelContribution[]
+  ): string[] {
+    const contextualObjectives = [...objectives];
+    if (profile) {
+      contextualObjectives.push(
+        `Map detections to ${profile.alias[0] || profile.id.toUpperCase()} TTPs across the kill chain.`
+      );
+    }
+    contextualObjectives.push(`Capture sector-specific playbook adjustments for ${sector}.`);
+    pluginInsights.forEach((insight) => {
+      contextualObjectives.push(`Apply ${insight.providerName} detection enhancements during the drill.`);
+    });
+    return Array.from(new Set(contextualObjectives));
+  }
+
+  private applyAttackVectorContext(
+    attackVectors: AttackVector[],
+    profile: AdversaryProfile | undefined,
+    targetedCves: string[]
+  ): AttackVector[] {
+    const primaryCve = targetedCves[0];
+    return attackVectors.map((vector) => {
+      let description = vector.description;
+      if (primaryCve) {
+        description = description.replace(/CVE-\d{4}-XXXXX/g, primaryCve);
+      }
+
+      if (profile) {
+        description = `${description} (Aligned with ${profile.alias[0] || profile.id.toUpperCase()} playbook).`;
+      }
+
+      const indicators = Array.from(
+        new Set([
+          ...vector.indicators,
+          ...(primaryCve ? [`Exploit targeting ${primaryCve}`] : []),
+        ])
+      );
+
+      return {
+        ...vector,
+        description,
+        indicators,
+      };
+    });
+  }
+
+  private mergeMitreTactics(
+    baseTactics: string[],
+    profile: AdversaryProfile | undefined
+  ): string[] {
+    if (!profile) {
+      return baseTactics;
+    }
+
+    const enriched = new Set(baseTactics);
+    profile.preferredTactics.forEach((tacticId) => {
+      const alreadyPresent = Array.from(enriched).some((entry) => entry.startsWith(`${tacticId} `) || entry === tacticId);
+      if (!alreadyPresent) {
+        enriched.add(`${tacticId} - Actor-preferred tactic`);
+      }
+    });
+
+    return Array.from(enriched);
+  }
+
+  private normalizeSector(sector: string): string {
+    return sector.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
   }
 
   private generateTimeline(type: string, difficulty: string): TimelineEvent[] {

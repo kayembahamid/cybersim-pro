@@ -1,829 +1,480 @@
 # CyberSim Pro MCP Server
 
-A professional-grade Model Context Protocol (MCP) server for cybersecurity training, simulation, and incident response. This server provides AI assistants with powerful tools to create realistic security scenarios, simulate attacks, analyze networks, investigate incidents, and perform digital forensics.
-# CyberSim Pro MCP Server
-
-A professional-grade Model Context Protocol (MCP) server for cybersecurity training, simulation, and incident response. This server provides AI assistants with powerful tools to create realistic security scenarios, simulate attacks, analyze networks, investigate incidents, and perform digital forensics.
-
-## 🎯 Overview
-
-CyberSim Pro enables AI assistants to help security professionals and learners with:
-- **Security Scenario Creation** - Generate realistic training scenarios across multiple attack types
-- **Threat Simulation** - Simulate sophisticated cyberattacks with detailed TTPs
-- **Network Analysis** - Analyze network traffic and identify security issues
-- **Incident Response** - Conduct comprehensive incident investigations
-- **Digital Forensics** - Perform forensic analysis on various artifact types
-- **Security Reporting** - Generate executive and technical security reports
-
-## 🏗️ Project Structure
-
-```
-cybersim-pro-mcp/
-├── src/
-│   ├── index.ts                          # Main server entry point
-│   ├── scenarios/
-│   │   └── scenarioManager.ts            # Security scenario management
-│   ├── simulators/
-│   │   ├── networkSimulator.ts           # Network traffic simulation
-│   │   └── threatSimulator.ts            # Threat/attack simulation
-│   ├── managers/
-│   │   └── incidentResponseManager.ts    # Incident response management
-│   └── analyzers/
-│       └── forensicsAnalyzer.ts          # Digital forensics analysis
-├── build/                                # Compiled JavaScript output
-├── package.json                          # Project dependencies
-├── tsconfig.json                         # TypeScript configuration
-└── README.md                             # This file
-```
-
-## 🚀 Installation
-
-### Prerequisites
-- Node.js 18.0.0 or higher
-- npm or yarn package manager
-
-### Setup Steps
-
-1. **Clone or create the project directory:**
-```bash
-mkdir cybersim-pro-mcp
-cd cybersim-pro-mcp
-```
-
-2. **Create the source directory structure:**
-```bash
-mkdir -p src/{scenarios,simulators,managers,analyzers}
-```
-
-3. **Copy all source files into their respective directories:**
-   - `index.ts` → `src/`
-   - `scenarioManager.ts` → `src/scenarios/`
-   - `networkSimulator.ts` → `src/simulators/`
-   - `threatSimulator.ts` → `src/simulators/`
-   - `incidentResponseManager.ts` → `src/managers/`
-   - `forensicsAnalyzer.ts` → `src/analyzers/`
-
-4. **Initialize and install dependencies:**
-```bash
-npm install
-```
-
-5. **Build the project:**
-```bash
-npm run build
-```
-
-## 🐳 Docker
-
-Build and run the MCP server inside Docker (stdio-based):
-
-1) Build image
-
-```bash
-docker build -t cybersim-pro-mcp ./cybersim-pro-mcp
-```
-
-2) Run (stdio)
-
-```bash
-docker run --rm -i cybersim-pro-mcp
-```
-
-To use Docker with the Cline VS Code extension, configure the server as:
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "cybersim-pro-mcp"]
-    }
-  }
-}
-```
-
-Notes
-- The server communicates over stdio; no ports are exposed.
-- Rebuild the image after changes: `docker build -t cybersim-pro-mcp ./cybersim-pro-mcp`.
-
-### Unified Launcher (Node or Docker)
-
-Use a single wrapper that runs Node by default, or Docker when `CYBERSIM_RUNTIME=docker`:
-
-Wrapper script: `cybersim-pro-mcp/scripts/run-cybersim.sh`
-
-Examples:
-
-```bash
-# Local build (Node)
-CYBERSIM_RUNTIME=node cybersim-pro-mcp/scripts/run-cybersim.sh
-
-# Docker image (ensure image is built)
-CYBERSIM_RUNTIME=docker cybersim-pro-mcp/scripts/run-cybersim.sh
-```
-
-Configure Cline (VS Code) to use the unified launcher:
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro-auto": {
-      "command": "/absolute/path/to/cybersim-pro-mcp/scripts/run-cybersim.sh",
-      "args": []
-    }
-  }
-}
-```
-
-Claude Desktop can also point to the same script; set `CYBERSIM_RUNTIME` in your shell or via a small wrapper if desired.
-
-### HTTP Bridge (for GPT Actions and non‑MCP clients)
-
-Run a simple HTTP server that mirrors the MCP tools:
-
-```bash
-cd cybersim-pro-mcp
-npm run serve:http
-# Default port: 8787 (override with PORT=xxxx)
-```
-
-Example calls:
-
-```bash
-curl -sS http://localhost:8787/health
-
-curl -sS -X POST http://localhost:8787/tool/create_scenario \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"ransomware","difficulty":"advanced","environment":"corporate"}'
-```
-
-OpenAPI spec: `cybersim-pro-mcp/http-openapi.yaml` (serve this file when configuring GPT Actions).
-
-#### Make it public quickly (tunnels)
-
-You can expose the local HTTP bridge with a tunnel service:
-
-```bash
-# Example using Cloudflare Tunnel (warp/v2) or ngrok
-# ngrok (requires account):
-ngrok http 8787
-
-# cloudflared (if you have a domain):
-cloudflared tunnel --url http://localhost:8787
-```
-
-For production, run in Docker on a server/VPS and expose the port:
-
-```bash
-# Build image
-docker build -t cybersim-pro-mcp ./cybersim-pro-mcp
-
-# Run HTTP bridge publicly on port 8787
-docker run -d --name cybersim-pro-http \
-  -e CYBERSIM_MODE=http \
-  -e CYBERSIM_API_KEY=YOUR_SECRET_TOKEN \
-  -p 8787:8787 \
-  cybersim-pro-mcp
-
-# Verify
-curl -sS http://YOUR_SERVER_IP:8787/health
-
-curl -sS -X POST http://YOUR_SERVER_IP:8787/tool/create_scenario \
-  -H 'Authorization: Bearer YOUR_SECRET_TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"ransomware","difficulty":"advanced"}'
-
-Security options
-- API key: set `CYBERSIM_API_KEY` and send `Authorization: Bearer <key>` on requests (required for /tool/* when set).
-- IP allowlist (optional): set `CYBERSIM_IP_ALLOW` with comma-separated IPs (e.g., `127.0.0.1,::1,203.0.113.10,local`). Requests must come from allowed IPs.
-
-## 📦 Publish to Docker Hub and list in MCP Toolkit
-
-1) Create a Docker Hub repository named `cybersim-pro-mcp` under your account.
-
-2) Set GitHub secrets in your repository:
-   - `DOCKERHUB_USERNAME`
-   - `DOCKERHUB_TOKEN` (Docker Hub access token)
-
-3) Tag a release in Git (`v1.0.0`, etc.). The workflow builds multi-arch images and pushes:
-   - `.github/workflows/docker-publish.yml`
-
-4) Verify on Docker Hub: `hamcodes/cybersim-pro-mcp` has tags `latest`, `vX.Y.Z`.
-
-5) Improve discoverability: Dockerfile includes OCI labels (title, description, source, license).
-
-6) Submit to MCP Toolkit Catalog:
-   - Click “Contribute” in the MCP Toolkit UI or open the catalog repo and add an entry.
-   - Use `cybersim-pro-mcp/mcp-catalog.json` as a template; update `image`, `repository`, `homepage`, and `maintainers`.
-   - Provide an icon (SVG/PNG) if requested by the catalog and link it.
-
-Suggested Docker run snippet for catalog card (stdio):
-
-```
-docker run --rm -i hamcodes/cybersim-pro-mcp:latest
-```
-
-Suggested Docker run snippet for catalog card (HTTP):
-
-```
-docker run --rm -p 8787:8787 -e CYBERSIM_MODE=http hamcodes/cybersim-pro-mcp:latest
-```
-```
-
-## 📝 Configuration
-
-### Claude Desktop Integration
-
-Add to your Claude Desktop configuration file:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro": {
-      "command": "node",
-      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
-    }
-  }
-}
-```
-
-#### Claude Desktop via Docker
-
-Build the image first:
-
-```bash
-docker build -t cybersim-pro-mcp ./cybersim-pro-mcp
-```
-
-Then use this Claude Desktop config to run the server in Docker:
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro-docker": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "cybersim-pro-mcp"]
-    }
-  }
-}
-```
-
-#### Claude Desktop (macOS) — Quick Launch Scripts
-
-You can point Claude directly to helper scripts for Node or Docker:
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro-node": {
-      "command": "/absolute/path/to/cybersim-pro-mcp/scripts/run-cybersim-node.sh",
-      "args": []
-    },
-    "cybersim-pro-docker": {
-      "command": "/absolute/path/to/cybersim-pro-mcp/scripts/run-cybersim-docker.sh",
-      "args": []
-    }
-  }
-}
-```
-
-Notes
-- The Node script expects a built server at `build/index.js`.
-- The Docker script expects a built image named `cybersim-pro-mcp` (see Docker section).
-
-### Cline VSCode Extension Integration
-
-Add to your Cline MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "cybersim-pro": {
-      "command": "node",
-      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
-    }
-  }
-}
-```
-
-## 🔧 Available Tools
-
-### 1. create_scenario
-Create customizable cybersecurity training scenarios.
-
-**Parameters:**
-- `type` (required): phishing, ransomware, ddos, data_breach, insider_threat, apt
-- `difficulty` (required): beginner, intermediate, advanced, expert
-- `environment` (optional): corporate, cloud, IoT, etc.
-
-**Example:**
-```json
-{
-  "type": "ransomware",
-  "difficulty": "advanced",
-  "environment": "corporate"
-}
-```
-
-### 2. simulate_attack
-Simulate realistic cyberattacks with detailed attack phases.
-
-**Parameters:**
-- `attack_type` (required): Type of attack to simulate
-- `target` (required): Target system or network segment
-- `intensity` (optional): low, medium, high, critical
-
-**Example:**
-```json
-{
-  "attack_type": "ransomware",
-  "target": "WORKSTATION-001",
-  "intensity": "high"
-}
-```
-
-### 3. analyze_network
-Analyze network traffic and identify security issues.
-
-**Parameters:**
-- `network_segment` (required): Network segment to analyze
-- `duration` (optional): Analysis duration in minutes (default: 10)
-- `focus` (optional): Array of focus areas - anomalies, vulnerabilities, threats
-
-**Example:**
-```json
-{
-  "network_segment": "DMZ",
-  "duration": 30,
-  "focus": ["anomalies", "threats"]
-}
-```
-
-### 4. investigate_incident
-Conduct incident response investigations.
-
-**Parameters:**
-- `incident_id` (required): Unique incident identifier
-- `scope` (optional): initial, full, deep_dive (default: initial)
-
-**Example:**
-```json
-{
-  "incident_id": "INC-2024-001",
-  "scope": "full"
-}
-```
-
-### 5. forensics_analysis
-Perform digital forensics on system artifacts.
-
-**Parameters:**
-- `artifact_type` (required): memory, disk, network, logs, registry
-- `system_id` (required): System identifier
-- `analysis_depth` (optional): quick, standard, comprehensive (default: standard)
-
-**Example:**
-```json
-{
-  "artifact_type": "memory",
-  "system_id": "WORKSTATION-001",
-  "analysis_depth": "comprehensive"
-}
-```
-
-### 6. generate_report
-Generate comprehensive security reports.
-
-**Parameters:**
-- `report_type` (required): incident, vulnerability, compliance, executive
-- `incident_ids` (optional): Array of related incident IDs
-- `include_recommendations` (optional): Boolean (default: true)
-
-**Example:**
-```json
-{
-  "report_type": "executive",
-  "incident_ids": ["INC-2024-001", "INC-2024-002"],
-  "include_recommendations": true
-}
-```
-
-## 💡 Usage Examples
-
-### Example 1: Create and Simulate a Ransomware Attack
-
-```
-User: Create an advanced ransomware scenario in a corporate environment
-
-AI uses: create_scenario
-- type: "ransomware"
-- difficulty: "advanced"
-- environment: "corporate"
-
-User: Now simulate this attack with high intensity
-
-AI uses: simulate_attack
-- attack_type: "ransomware"
-- target: "FILESERVER-001"
-- intensity: "high"
-```
-
-### Example 2: Investigate a Security Incident
-
-```
-User: Investigate incident INC-2024-001 with full scope
-
-AI uses: investigate_incident
-- incident_id: "INC-2024-001"
-- scope: "full"
-
-User: Perform comprehensive forensics on the affected system
-
-AI uses: forensics_analysis
-- artifact_type: "disk"
-- system_id: "WORKSTATION-001"
-- analysis_depth: "comprehensive"
-
-User: Generate an executive report
-
-AI uses: generate_report
-- report_type: "executive"
-- incident_ids: ["INC-2024-001"]
-- include_recommendations: true
-```
-
-### Example 3: Network Security Assessment
-
-```
-User: Analyze our DMZ network for threats and vulnerabilities
-
-AI uses: analyze_network
-- network_segment: "DMZ"
-- duration: 60
-- focus: ["threats", "vulnerabilities", "anomalies"]
-```
-
-## 🎓 Learning Path
-
-### Beginner Level
-1. Start with basic scenarios (phishing, simple malware)
-2. Use "beginner" difficulty settings
-3. Focus on understanding attack indicators
-4. Review detection methods and recommendations
-
-### Intermediate Level
-1. Progress to multi-phase attacks (ransomware, APT)
-2. Use "intermediate" difficulty
-3. Practice incident investigation techniques
-4. Analyze network traffic patterns
-
-### Advanced Level
-1. Work with complex scenarios (APT campaigns)
-2. Use "advanced" or "expert" difficulty
-3. Conduct deep forensic analysis
-4. Generate comprehensive security reports
-
-## 🔒 Security Features
-
-### MITRE ATT&CK Integration
-All scenarios and simulations are mapped to MITRE ATT&CK framework, providing:
-- Tactic and technique identification
-- TTP (Tactics, Techniques, Procedures) documentation
-- Industry-standard threat categorization
-
-### Realistic Indicators of Compromise (IOCs)
-Generated IOCs include:
-- File hashes (SHA-256)
-- IP addresses and domains
-- Registry keys and file paths
-- Network signatures
-
-### Chain of Custody
-Digital forensics maintains proper evidence handling:
-- Cryptographic hash verification
-- Timestamped custody records
-- Handler documentation
-- Evidence preservation
-
-## 🤖 Working with AI Guardrails
-
-- Lead each session with explicit defensive context (authorized lab, training goal) so MCP clients treat the simulation as a safety exercise.
-- Phrase red-team actions as simulated steps that support detection practice instead of real exploitation instructions.
-- Include safety flags in tool prompts or scenario templates (for example, `training=true`, `environment="lab"`) to help downstream assistants interpret intent.
-- Sanitize payload-like output by returning placeholders or high-level descriptions while preserving investigative details to reduce guardrail triggers.
-- Provide operators with acceptable-use guidance and keep conversations focused on detection, mitigation, and lessons learned to align with platform policies.
-
-## 🛡️ Full Lab Usage (Security Teams)
-
-### 1. Isolated Environment Blueprint
-
-- **Build a sandbox**: use a disposable VM, on-prem lab VLAN, or private cloud VPC that contains only synthetic hosts, logs, and credentials.
-- **Run the server**: inside that sandbox execute `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`. Allow connections only from your approved MCP client (Claude Desktop, Cline, or a custom integration).
-- **Network controls**: keep the container on loopback or a lab-only subnet. Block egress to production networks unless a drill specifically requires staged connectivity.
-- **Hard reset after drills**: destroy/rebuild the VM, revert snapshots, or redeploy via infrastructure-as-code so every exercise starts from a clean baseline.
-- **Access governance**: issue lab-only accounts with least privilege, collect terminal/MCP logs, and require analysts to record objectives and outcomes for compliance.
-
-#### Step-by-step example (Claude Desktop)
-
-1. Start the container in your lab terminal:
-   ```bash
-   docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1
-   ```
-   Leave this window open; the server now listens over stdio.
-2. In Claude Desktop open **Settings → MCP Servers → Add**, choose **Custom Command**, and paste `docker` with arguments `run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`.
-3. Launch a new chat and paste the "Session kickoff" prompt from the playbook. Claude will acknowledge the lab context.
-4. Prompt Claude: “Call `create_scenario` with the ransomware parameters listed in the playbook.” Verify the response contains scenario details and ATT&CK techniques.
-5. Continue sequentially: request `simulate_attack`, `analyze_network`, `investigate_incident`, `forensics_analysis`, and `generate_report`, using the provided prompt snippets so Claude invokes each tool.
-6. After each tool run, download/record the JSON output (Claude → Actions → Copy raw tool response) into your exercise evidence folder.
-7. Conclude with the “Closeout reflection” prompt, then stop the container (Ctrl+C) and revert the lab VM to its clean snapshot.
-
-##### Sample `simulate_attack` output (trimmed)
-
-```json
-{
-  "simulationId": "SIM-1759281782112",
-  "attackType": "ransomware",
-  "target": "FILESERVER-001",
-  "phases": [
-    {
-      "phase": "Initial Access",
-      "techniques": [
-        {
-          "name": "Phishing Email",
-          "mitreId": "T1566.001",
-          "detected": true,
-          "detectionMethod": "Email gateway sandbox"
-        }
-      ],
-      "artifacts": [
-        {
-          "type": "Email",
-          "location": "user@company.com inbox",
-          "content": "Subject: Urgent - Q4 Financial Report [malicious_doc.docm]"
-        }
-      ]
-    },
-    {
-      "phase": "Impact",
-      "techniques": [
-        {
-          "name": "Data Encrypted for Impact",
-          "mitreId": "T1486",
-          "detected": true
-        }
-      ],
-      "artifacts": [
-        {
-          "type": "File",
-          "location": "C:\\Users\\*\\Desktop\\README_FOR_DECRYPT.txt",
-          "content": "Your files have been encrypted..."
-        }
-      ]
-    }
-  ],
-  "iocs": [
-    { "type": "SHA256", "value": "01d02a0d...", "severity": "High" }
-  ],
-  "detectionRate": 50,
-  "impactAssessment": {
-    "scope": "Multiple departments",
-    "estimatedDowntime": 48
-  }
-}
-```
-
-### 2. Automation via HTTP Bridge ("TTP Bridge")
-
-- **Bring up the API**: within the same sandbox run `npm run serve:http` or the Docker HTTP mode to expose CyberSim Pro’s REST interface for orchestration.
-- **Lock it down**: set `CYBERSIM_API_KEY`, restrict ingress with firewall rules and optional IP allowlists, and terminate TLS if you traverse beyond a single host.
-- **Embed safety checks**: in your automation pipeline log every request/response, rate-limit tool invocations, require each job to declare the training scenario ID/scope, and alert on attempts to export live payloads.
-- **Handle outputs carefully**: treat generated reports, timelines, and artifacts as sensitive lab data—store them in secured repositories and sanitize before sharing outside the exercise team.
-
-## 🗣️ Prompt Playbook
-
-Use these ready-to-copy prompts when you connect CyberSim Pro to Claude, Cline, or another MCP client.
-
-**Session kickoff (share first):**
-```text
-You are assisting with a SOC tabletop in an isolated lab environment.
-Objective: train defenders on ransomware response.
-Constraints: describe only simulated attacker actions, never real payloads.
-Confirm readiness, then we will invoke CyberSim Pro tools.
-```
-
-**Scenario creation:**
-```text
-Invoke the CyberSim Pro tool `create_scenario` with:
-{
-  "type": "ransomware",
-  "difficulty": "advanced",
-  "environment": "corporate",
-  "training": true
-}
-Return the narrative, impacted assets, and the MITRE ATT&CK techniques we should brief to analysts.
-```
-
-**Simulated attacker run:**
-```text
-Run `simulate_attack` using the current scenario. Emphasize the lateral movement phase and call out artifacts analysts should monitor. Keep all payloads redacted as `[SIMULATED_PAYLOAD]`.
-```
-
-**Network-focused drill:**
-```text
-Analyze the DMZ segment for a 30-minute window with `analyze_network`.
-Parameters: {"network_segment":"DMZ","duration":30,"focus":["anomalies","threats"],"training":true}.
-Convert the findings into three SOC alert playbooks (detection, triage, containment).
-```
-
-**Host investigation:**
-```text
-Investigate incident INC-TRAIN-2025-002 at full scope with `investigate_incident`.
-Summarize host findings, timeline, and recommended containment actions suitable for the blue-team briefing.
-```
-
-**Forensics deep dive:**
-```text
-Run `forensics_analysis` on WORKSTATION-TRAIN-07 with analysis depth "comprehensive".
-Redact any live malware binaries as `[REDACTED_SAMPLE]` but keep hashes, timestamps, and chain-of-custody notes.
-```
-
-**Executive wrap-up:**
-```text
-Use `generate_report` with report_type "executive" covering incidents INC-TRAIN-2025-001 and INC-TRAIN-2025-002.
-Include lessons learned, policy updates, and technology improvements for leadership.
-```
-
-**Closeout reflection:**
-```text
-Summarize key defensive takeaways from today’s tabletop by People, Process, and Technology. Highlight next steps for blue-team readiness.
-```
-
-### Turning Outputs into a Polished Report
-
-1. Run `generate_report` (executive or incident) with the incident IDs collected during the exercise.
-2. Ask your MCP client to convert the tool response into a formatted document:
-   ```text
-   Convert the generate_report output into a Markdown executive summary with sections for Overview, Key Findings, Detection Gaps, Recommendations, and Appendix (include IOCs table).
-   ```
-3. Optionally request additional formats (Google Doc, PDF, slide outline) using the assistant’s native export features.
-4. Store the final report alongside the raw tool JSON in your evidence repository so teams can trace findings back to the simulation data.
-
-### Red Team Simulation Recipes
-
-Use these playbooks to rehearse different attack paths while staying inside the lab safeguards above. Each recipe chains tool calls and provides red-team/blue-team prompts.
-
-1. **Spearphishing → Ransomware (Finance Department)**
-   - Kickoff: “Simulate a ransomware campaign targeting Finance via spearphishing in our training lab.”
-   - `create_scenario`: `{ "type": "ransomware", "difficulty": "advanced", "environment": "finance", "initial_vector": "phishing" }`
-   - `simulate_attack`: focus on delivery/execution; ask for defensive alerts (“Highlight which email and endpoint controls fired.”)
-   - `analyze_network`: segment `FINANCE-SUBNET`, focus `["anomalies","command_and_control"]`.
-   - `generate_report`: executive summary plus finance-specific business impact.
-
-2. **Credential Theft → Privilege Escalation (Domain Admin takeover)**
-   - Scenario prompt: “We’re testing response to Kerberoasting and privilege escalation in AD.”
-   - `create_scenario`: `{ "type": "apt", "difficulty": "expert", "environment": "active_directory", "training": true }`
-   - `simulate_attack`: request explicit MITRE techniques for credential access and privilege escalation.
-   - `investigate_incident`: incident ID from simulation; ask for host artifacts (tickets, LSASS dumps).
-   - Follow-up: “List containment steps to stop attacker lateral movement post-escalation.”
-
-3. **Supply-Chain Malware (CI/CD pipeline)**
-   - Scenario: “Model a compromised dependency pushing malicious build artifacts.”
-   - `create_scenario`: `{ "type": "supply_chain", "environment": "devops", "difficulty": "advanced" }`
-   - `simulate_attack`: emphasize build server persistence and artifact poisoning.
-   - `analyze_network`: target `CICD-NET`, focus `["threats","exfiltration"]`.
-   - `forensics_analysis`: run on `BUILD-SERVER-01`, `analysis_depth":"comprehensive"`.
-   - Debrief: “Summarize developer workstation hardening recommendations.”
-
-4. **Insider Data Exfiltration (HR Records)**
-   - Kickoff: “Simulate a malicious insider exfiltrating HR data via cloud storage.”
-   - `create_scenario`: `{ "type": "data_breach", "environment": "hr", "insider_risk": true }`
-   - `simulate_attack`: request details on data staging and exfil channels.
-   - `analyze_network`: focus `["exfiltration","anomalies"]`, segment `HR-CLOUD-GW`.
-   - `generate_report`: compliance-focused (include regulatory notification guidance).
-
-5. **OT Network Disruption (Manufacturing Plant)**
-   - Scenario prompt: “We need to drill an attacker pivoting from IT to OT and disrupting PLCs.”
-   - `create_scenario`: `{ "type": "ddos", "environment": "ot", "pivot_from_it": true }`
-   - `simulate_attack`: stress lateral movement from corporate LAN to OT VLAN.
-   - `analyze_network`: run twice—`CORP-LAN` and `OT-NET`—merge findings for cross-domain visibility.
-   - `forensics_analysis`: target `PLC-GATEWAY`, with emphasis on integrity tampering.
-   - Closing: “Draft an OT incident response checklist based on this simulation.”
-
-### Live Red-Team / Purple-Team Showcases
-
-Use this flow when demonstrating real-time attacks to stakeholders while staying within the safe lab.
-
-1. **Lab readiness** – schedule the session, boot the sandbox, and preload the prompts you plan to use. Remind viewers that everything is synthetic.
-   - Start the container ahead of time: `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`.
-   - Stage a "runbook": copy the kickoff/playbook prompts and any scenario JSON into a scratch pad so you can paste them quickly.
-   - Verify recording/streaming tools and brief participants on the rules of engagement (no production data, training UID for every action).
-2. **Attack narration** – share your screen, call `simulate_attack`, and walk through each phase like a live incident broadcast.
-   - Explain the attacker goal, highlight the MITRE tactic/technique returned (e.g., `T1566.001` phishing), and discuss what defenses should trigger.
-   - Contrast with production reality: "If this were our finance tenant, this alert would appear in Proofpoint within 60 seconds."
-3. **Telemetry handoff** – immediately surface artifacts and IOCs so defenders can practice in parallel.
-   - Paste hashes, registry keys, or commands into a shared doc/Slack channel, or ingest them into a demo SIEM dashboard.
-   - Encourage analysts to run quick hunts ("Show me how you’d search Splunk for `lsass.dmp` being created").
-4. **Blue-team pivot** – run `investigate_incident`, `analyze_network`, or `forensics_analysis` live and hand the mic to SOC/IR staff.
-   - Ask them to interpret the evidence ("What containment step happens now?").
-   - Capture decisions in a shared note so responsibilities are clear.
-5. **Executive recap** – finish by generating an executive `generate_report`, annotate key business impacts, and capture remediation tasks.
-   - Convert the report to Markdown/PDF and point out downtime, financial impact, and customer messaging implications.
-   - Assign owners/dates to recommended actions while leadership is present.
-6. **Reset & archive** – shut down the container, revert the lab snapshot, and store recordings plus raw tool outputs.
-   - File the assets in your training evidence repository tagged with tabletop ID/date.
-   - Send a follow-up email within 24 hours summarizing lessons learned and action items.
-
-## 📊 Output Formats
-
-All tools return structured JSON data including:
-- Detailed findings and analysis
-- Timeline reconstruction
-- Evidence artifacts
-- Recommendations
-- MITRE ATT&CK mappings
-- IOCs and signatures
-
-## 🛠️ Development
-
-### Build Commands
-
-```bash
-# Build the project
-npm run build
-
-# Watch mode for development
-npm run watch
-
-# Run the server directly
-npm run dev
-```
-
-### Extending the Server
-
-To add new tools:
-1. Add tool definition in `getTools()` method
-2. Create handler method in `CyberSimProServer` class
-3. Implement business logic in appropriate module
-4. Update documentation
-
-## 📚 References
-
-- [MITRE ATT&CK Framework](https://attack.mitre.org/)
-- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
-- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
-- [SANS Incident Response](https://www.sans.org/white-papers/)
-
-## 🤝 Use Cases
-
-### Security Training
-- Create realistic scenarios for SOC analysts
-- Practice incident response procedures
-- Develop threat hunting skills
-- Learn digital forensics techniques
-
-### Red Team Exercises
-- Plan attack simulations
-- Document attack chains
-- Generate realistic IOCs
-- Test detection capabilities
-
-### Security Assessments
-- Conduct network analysis
-- Identify vulnerabilities
-- Generate compliance reports
-- Document security posture
-
-### Incident Response
-- Investigate security incidents
-- Perform forensic analysis
-- Reconstruct attack timelines
-- Generate incident reports
-
-## 📄 License
-
-MIT License - Feel free to use and modify for your needs
-
-## 🆘 Support
-
-For issues, questions, or contributions:
-- Review the documentation above
-- Check the source code comments
-- Examine the example outputs
-- Test with simple scenarios first
-
-## 🎯 Roadmap
-
-Future enhancements:
-- Additional attack scenario types
-- Integration with threat intelligence feeds
-- Automated playbook generation
-- Custom report templates
-- Multi-tenancy support
-- Cloud platform simulations
+CyberSim Pro is a professional-grade Model Context Protocol (MCP) server purpose-built for cybersecurity training, purple-team collaboration, and executive readiness. It equips AI assistants and automation pipelines with structured tools to generate scenarios, simulate adversaries, analyse telemetry, investigate incidents, perform forensics, and publish board-ready reports—all while recording an immutable audit trail.
 
 ---
 
-**Built with ❤️ for the cybersecurity community**
+## Table of Contents
+- [Feature Highlights](#feature-highlights)
+- [Quick Start](#quick-start)
+  - [Run with Node.js](#run-with-nodejs)
+  - [Run with Docker](#run-with-docker)
+  - [HTTP Bridge (REST API)](#http-bridge-rest-api)
+- [MCP Client Integration](#mcp-client-integration)
+  - [Claude Desktop](#claude-desktop)
+  - [Cline VS Code Extension](#cline-vscode-extension)
+- [Tool Reference & Walkthroughs](#tool-reference--walkthroughs)
+  - [1. `create_scenario`](#1-create_scenario)
+  - [2. `simulate_attack`](#2-simulate_attack)
+  - [3. `analyze_network`](#3-analyze_network)
+  - [4. `investigate_incident`](#4-investigate_incident)
+  - [5. `forensics_analysis`](#5-forensics_analysis)
+  - [6. `generate_report`](#6-generate_report)
+  - [7. `stop_simulation`](#7-stop_simulation)
+  - [8. `replay_telemetry`](#8-replay_telemetry)
+  - [9. `list_metrics`](#9-list_metrics)
+  - [10. `export_controls`](#10-export_controls)
+  - [11. `sync_risk_register`](#11-sync_risk_register)
+  - [12. `generate_validation_report`](#12-generate_validation_report)
+- [Advanced Capabilities](#advanced-capabilities)
+  - [Adaptive Adversary Profiles & Plugins](#adaptive-adversary-profiles--plugins)
+  - [Command-Chain Drill-Down](#command-chain-drill-down)
+  - [Detection Engineering Packs](#detection-engineering-packs)
+  - [Executive & Governance Suite](#executive--governance-suite)
+  - [Audit Logging & Kill Switch](#audit-logging--kill-switch)
+  - [Role-Based Access & Approvals](#role-based-access--approvals)
+  - [Risk & Compliance Sync](#risk--compliance-sync)
+- [Operational Playbooks](#operational-playbooks)
+- [Contributing & Community Sharing](#contributing--community-sharing)
+- [Support Resources](#support-resources)
+- [License](#license)
+
+---
+
+## Feature Highlights
+- **Adaptive adversary scenarios** tied to real-world APT/FIN actor playbooks, sector-aware CVEs, and plugin-provided intel.
+- **Command-chain drill-down**: pseudo CLI steps (guardrailed) for every attack phase to map outputs to analyst tooling.
+- **Detection engineering bundles**: Sigma, Splunk, and KQL artefacts, MITRE ATT&CK heatmaps, gap analysis, and SOAR integration hooks.
+- **Incident response suite**: deep investigations, forensic artefacts, purple-team scorecards, facilitation kits, executive dashboards, maturity roadmaps, and procurement briefs.
+- **Operational guardrails**: append-only audit logs, approval-gated RBAC, `stop_simulation` kill switch, role-based prompt templates, and formal policy & ethics guide.
+- **Telemetry replay & metrics**: overlay real PCAP/EDR/SIEM events on simulations, auto-capture readiness metrics, and expose historical trends.
+- **Risk & control automation**: export compensating controls, sync with GRC platforms, and produce auditor-ready validation digests.
+
+---
+
+## Quick Start
+
+### Run with Node.js
+```bash
+# Clone the repository (or copy into your workspace)
+cd cybersim-pro-mcp
+
+# Install dependencies
+npm install
+
+# Build TypeScript sources
+npm run build
+
+# Start the MCP server over stdio
+node build/index.js
+```
+
+### Run with Docker
+```bash
+# Build the image (from the repo root)
+docker build -t cybersim-pro-mcp .
+
+# Launch in stdio mode (for Claude, Cline, etc.)
+docker run --rm -i cybersim-pro-mcp
+```
+
+### HTTP Bridge (REST API)
+Expose tools to REST clients or GPT Actions.
+```bash
+npm run serve:http  # defaults to http://localhost:8787
+```
+Secure with environment variables:
+- `CYBERSIM_API_KEY` – require `Authorization: Bearer <key>` header
+- `CYBERSIM_IP_ALLOW` – comma-separated list (`127.0.0.1,::1,local,203.0.113.10`)
+- `CYBERSIM_APPROVAL_TOKEN` – shared secret required for restricted tools (`simulate_attack`, `stop_simulation`, `replay_telemetry`)
+- `CYBERSIM_RBAC_CONFIG` – optional path to a JSON role policy (see [Role-Based Access & Approvals](#role-based-access--approvals))
+- Metrics, control feeds, and audit digests are persisted to `./metrics/`, `./controls/`, and `./logs/` respectively.
+
+Sample health & scenario creation:
+```bash
+curl -s http://localhost:8787/health
+
+curl -s -X POST http://localhost:8787/tool/create_scenario \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "type": "ransomware",
+        "difficulty": "advanced",
+        "environment": "corporate",
+        "sector": "finance",
+        "adversary_profile": "fin7",
+        "focus_cves": ["CVE-2024-21410"],
+        "operator": {"id": "alice", "role": "controller"},
+        "approval_token": "${CYBERSIM_APPROVAL_TOKEN}"
+      }' | jq
+```
+
+---
+
+## MCP Client Integration
+
+### Claude Desktop
+macOS path: `~/Library/Application Support/Claude/claude_desktop_config.json`
+```json
+{
+  "mcpServers": {
+    "cybersim-pro": {
+      "command": "node",
+      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
+    }
+  }
+}
+```
+For Docker-backed execution:
+```json
+{
+  "mcpServers": {
+    "cybersim-pro-docker": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "cybersim-pro-mcp"]
+    }
+  }
+}
+```
+
+### Cline VS Code Extension
+Open **Command Palette → “Cline: Open MCP Settings”** and add:
+```json
+{
+  "mcpServers": {
+    "cybersim-pro": {
+      "command": "node",
+      "args": ["/absolute/path/to/cybersim-pro-mcp/build/index.js"]
+    }
+  }
+}
+```
+Wrapper scripts in `./scripts/` support runtime switching via `CYBERSIM_RUNTIME`.
+
+---
+
+## Tool Reference & Walkthroughs
+Each tool can be invoked through MCP clients or directly via the HTTP bridge. Examples below use `jq` for clarity.
+
+### 1. `create_scenario`
+Generate a tailored scenario with adaptive adversary content.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/create_scenario \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "type": "apt",
+        "difficulty": "expert",
+        "environment": "cloud",
+        "sector": "government",
+        "adversary_profile": "apt29",
+        "focus_cves": ["CVE-2023-23397"]
+      }' | jq '.id, .description, .threatIntel'
+```
+
+**What you get**
+- Scenario ID (e.g., `SCN-...`)
+- Sector-aligned objectives and timelines
+- Adversary profile with CVEs, detection opportunities, plugin insight list
+
+Use the returned `scenarioId` to reference the scenario in follow-up drills, reports, or evidence.
+
+---
+
+### 2. `simulate_attack`
+Simulate a multi-phase attack and inspect the command-chain drill-down.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/simulate_attack \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "attack_type": "ransomware",
+        "target": "FILESERVER-001",
+        "intensity": "high"
+      }' | jq '{simulationId, commandChain: .commandChain[0:5], phases: [.phases[0].artifacts[0]]}'
+```
+
+**Highlights**
+- `commandChain` array details redacted pseudo commands, safeguards, and MITRE references for each phase.
+- `phases` include techniques, detection methods, and evidence artefacts.
+- `simulationId` feeds into `stop_simulation` or reporting workflows.
+
+---
+
+### 3. `analyze_network`
+Analyse network segments and receive detection artefacts plus coverage insights.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/analyze_network \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "network_segment": "DMZ",
+        "duration": 30,
+        "focus": ["anomalies", "threats", "vulnerabilities"]
+      }' | jq '{
+        statistics: .statistics.bandwidthUtilization,
+        sigma: .detectionArtifacts.sigma[0],
+        splunk: .detectionArtifacts.splunk[0].query,
+        heatmap: .mitreHeatmap[0:3],
+        integration: .integrationHooks
+      }'
+```
+
+**Output**
+- Auto-generated Sigma/Splunk/KQL detections with descriptions & tags
+- MITRE ATT&CK + D3FEND heatmap coverage with gap analysis
+- Integration hooks for Splunk ES, Sentinel, and Cortex XSOAR
+- Recommendations aligned with anomalies/vulnerabilities/threats
+
+---
+
+### 4. `investigate_incident`
+Run a timeline-driven investigation with evidence, root cause, containment, and remediation details.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/investigate_incident \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "incident_id": "INC-2024-001",
+        "scope": "deep_dive"
+      }' | jq '{severity, timeline: .timeline.events[0:3], rootCause, containmentActions[0]}'
+```
+
+**Deliverables**
+- Attack path reconstruction with dwell time
+- Findings and supporting evidence (with chain-of-custody records)
+- Containment actions, remediation steps, and lessons learned
+
+---
+
+### 5. `forensics_analysis`
+Produce digital forensic artefacts for memory, disk, network, logs, or registry sources.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/forensics_analysis \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "artifact_type": "disk",
+        "system_id": "WORKSTATION-001",
+        "analysis_depth": "comprehensive"
+      }' | jq '{artifactSummary: .findings[0], chainOfCustody: .chainOfCustody[0]}'
+```
+
+Expect curated findings, hash validation, custody records, and preservation guidance.
+
+---
+
+### 6. `generate_report`
+Generate executive, incident, vulnerability, or compliance reports with optional facilitation mode.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/generate_report \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "report_type": "executive",
+        "incident_ids": ["INC-2024-001", "INC-2024-002"],
+        "include_recommendations": true,
+        "mode": "facilitation"
+      }' | jq '{
+        executiveSummary,
+        scorecard: .scorecard.metrics,
+        facilitationKit: .facilitationKit.agenda,
+        dashboard: .executiveDashboard.heatmap,
+        roadmap: .maturityRoadmap.milestones,
+        procurement: .procurementBrief.faqs
+      }'
+```
+
+Key sections:
+- Executive summary & risk posture
+- Purple-team scorecard metrics and lessons
+- Facilitation kit (kickoff prompt, teleprompter notes, agenda)
+- Executive dashboard (risk, downtime, financial exposure)
+- Maturity roadmap (NIST CSF, CMMC, ISO 27001 alignment)
+- Procurement brief (FAQs, legal considerations, risk controls)
+
+---
+
+### 7. `stop_simulation`
+Kill a single simulation or all active runs with audit logging.
+
+```bash
+# Stop a specific simulation ID
+target="SIM-1759281782112"
+curl -s -X POST http://localhost:8787/tool/stop_simulation \
+  -H 'Content-Type: application/json' \
+  -d "{\"simulation_id\": \"$target\", \"reason\": \"Executive requested early termination\", \"operator\": {\"id\": \"alice\", \"role\": \"controller\"}, \"approval_token\": \"${CYBERSIM_APPROVAL_TOKEN}\"}"
+
+# Stop everything (returns list of terminated runs)
+curl -s -X POST http://localhost:8787/tool/stop_simulation \
+  -H 'Content-Type: application/json' \
+  -d '{"operator":{"id":"alice","role":"controller"},"approval_token":"'"${CYBERSIM_APPROVAL_TOKEN}"'"}'
+```
+
+The audit logger records the termination reason, counts, and timestamps for compliance evidence.
+
+---
+
+### 8. `replay_telemetry`
+Overlay raw telemetry (PCAP/EDR/SIEM exports) against a live simulation to validate coverage.
+
+**HTTP Request**
+```bash
+curl -s -X POST http://localhost:8787/tool/replay_telemetry \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "simulation_id": "SIM-1759281782112",
+        "telemetry": [
+          {"timestamp":"2024-05-01T10:00:00Z","indicator":"powershell.exe","description":"Beacon to rare domain","techniqueId":"t1059.001"}
+        ],
+        "operator": {"id": "alice", "role": "controller"},
+        "approval_token": "'"${CYBERSIM_APPROVAL_TOKEN}"'"
+      }' | jq '{matchedTechniques, detectionGaps, observations}'
+```
+
+Matched techniques confirm detections fired; `detectionGaps` highlight phases lacking telemetry coverage. Recommended controls are appended automatically to the compensating-control feed.
+
+---
+
+### 9. `list_metrics`
+Summarise readiness metrics across all exercises.
+
+```bash
+curl -s -X POST http://localhost:8787/tool/list_metrics -H 'Content-Type: application/json' -d '{}' | jq
+```
+
+Outputs include total exercises, reports generated, and average detection/containment times alongside the latest trend entries.
+
+---
+
+### 10. `export_controls`
+Export the consolidated compensating-control feed (detections, automations, gap closures).
+
+```bash
+curl -s -X POST http://localhost:8787/tool/export_controls -H 'Content-Type: application/json' -d '{}' | jq '.[0:5]'
+```
+
+Each entry includes category, source, priority, and payload ready for SIEM/SOAR ingestion.
+
+---
+
+### 11. `sync_risk_register`
+Generate REST payloads for governance platforms such as ServiceNow GRC, Archer, or OneTrust.
+
+```bash
+curl -s -X POST http://localhost:8787/tool/sync_risk_register \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "system": "servicenow",
+        "incident_id": "INC-2024-001",
+        "priority": "Critical",
+        "owner": "risk.governance@example.com"
+      }' | jq
+```
+
+The response provides the endpoint, HTTP method, payload, and checklist for operators to update the risk register.
+
+---
+
+### 12. `generate_validation_report`
+Produce an auditor-facing summary with hashed proof of recent CyberSim activity.
+
+```bash
+curl -s -X POST http://localhost:8787/tool/generate_validation_report -H 'Content-Type: application/json' -d '{}' | jq
+```
+
+The digest contains the SHA-256 hash, total entries, and redacted samples suitable for regulator briefings.
+
+---
+
+## Advanced Capabilities
+
+### Adaptive Adversary Profiles & Plugins
+- Profiles (e.g., APT29, FIN7) embed motivations, campaigns, preferred tactics, CVEs, and countermeasures.
+- `PluginRegistry` (`src/utils/pluginRegistry.ts`) lets you register sector or vendor-specific intel providers. Each plugin can inject CVEs, notes, and detection enhancements.
+- Scenario outputs surface `threatIntel.pluginInsights` referencing contributing providers.
+
+### Command-Chain Drill-Down
+Simulations include `commandChain` entries describing pseudo commands, safeguards, and technique references. Use these to:
+- Map red-team actions to your tooling (e.g., WMI logs, PowerShell policy)
+- Provide narrations during live tabletop facilitation
+- Export to internal red-team wikis without exposing live payloads
+
+### Detection Engineering Packs
+Network analysis responses include:
+- Sigma rules (YAML-string), Splunk searches, Sentinel KQL queries
+- Playbooks for triage/containment
+- MITRE ATT&CK + D3FEND mappings and coverage heatmaps
+- Integration hooks for Splunk ES saved searches, Sentinel analytics rules, and Cortex XSOAR playbooks
+
+### Executive & Governance Suite
+`generate_report` outputs provide everything needed for leadership alignment:
+- Executive dashboard, downtime estimates, financial impact
+- Purple-team metrics & lessons learned
+- Facilitation kit for hybrid workshops
+- Maturity roadmap with quarterly milestones and framework alignment
+- Procurement brief with FAQ, legal, and risk-control summaries
+
+### Audit Logging & Kill Switch
+- Every tool invocation is appended to `logs/audit.log` (configurable via `CYBERSIM_AUDIT_LOG_DIR`).
+- Entries capture timestamp, tool, sanitized arguments, metadata (scenario/report IDs), and error messages.
+- The `stop_simulation` tool halts activity immediately and records the termination reason for traceability.
+- `generate_validation_report` produces hashed digests of audit activity for auditors and regulators.
+
+### Role-Based Access & Approvals
+- High-impact tools (`simulate_attack`, `stop_simulation`, `replay_telemetry`) respect role policies defined via `CYBERSIM_RBAC_CONFIG`.
+- Restricted tools require a shared approval token (`CYBERSIM_APPROVAL_TOKEN`), enabling dual-control or change-ticket workflows.
+- Operator metadata is captured in the audit log, supporting segregation-of-duties reviews.
+- Default policy grants analysts access to low-risk tooling while controllers/CISOs can execute adversary simulations.
+
+### Risk & Compliance Sync
+- `sync_risk_register` generates ready-to-post payloads for ServiceNow GRC, Archer, OneTrust, or custom systems.
+- `export_controls` provides the compensating-control feed derived from detection packs, telemetry gaps, and automation hooks.
+- Telemetry replay and network analysis automatically feed the control register so lessons learned become enforceable controls.
+
+---
+
+## Operational Playbooks
+- **Learning Path** – follow beginner → intermediate → advanced exercises (see *Learning Path* section below) to ramp analysts.
+- **Role-Based Prompt Templates** – prebuilt red/blue/purple/executive prompts in `docs/ROLE_BASED_PROMPTS.md`.
+- **Policy & Ethics Guide** – acceptable use, regulatory alignment, and safety checklist in `docs/POLICY_AND_ETHICS.md`.
+- **Benchmark Library** – curated scenarios per industry with KPIs in `docs/BENCHMARK_LIBRARY.md`.
+- **Community Sharing Program** – contribute sanitized scenarios/detections using the workflow in `docs/COMMUNITY_PROGRAM.md`.
+
+### Learning Path (Recap)
+- **Beginner**: phishing or simple malware, focus on indicators and detection basics.
+- **Intermediate**: ransomware/APT scenarios, run investigations and network analysis.
+- **Advanced**: full kill-chain drills, deep forensics, executive reporting, automation via HTTP bridge.
+
+---
+
+## Contributing & Community Sharing
+1. Fork the repository and branch from `main` (or `community/main` when contributing to shared content).
+2. Add code or documentation, ensuring TypeScript builds succeed (`npm run build`).
+3. For community packs, follow sanitisation and metadata guidelines in `docs/COMMUNITY_PROGRAM.md`.
+4. Submit a pull request; audit logs and documentation updates are encouraged alongside new features.
+
+---
+
+## Support Resources
+- Role-based prompts: `docs/ROLE_BASED_PROMPTS.md`
+- Policy & ethics: `docs/POLICY_AND_ETHICS.md`
+- Plugin guide: `docs/PLUGIN_ARCHITECTURE.md`
+- Benchmark scenarios: `docs/BENCHMARK_LIBRARY.md`
+- Community sharing workflow: `docs/COMMUNITY_PROGRAM.md`
+
+For assistance:
+1. Review the documentation above.
+2. Inspect source code comments and example responses.
+3. Reproduce minimal scenarios (`create_scenario` → `simulate_attack`) to isolate issues.
+4. File issues or discussions on the GitHub repository.
+
+---
+
+## License
+Released under the [MIT License](LICENSE). Use, modify, and adapt CyberSim Pro MCP Server for authorised defensive purposes.
