@@ -516,6 +516,21 @@ Digital forensics maintains proper evidence handling:
 - Sanitize payload-like output by returning placeholders or high-level descriptions while preserving investigative details to reduce guardrail triggers.
 - Provide operators with acceptable-use guidance and keep conversations focused on detection, mitigation, and lessons learned to align with platform policies.
 
+### Recommended Lab Environment
+
+- Provision an isolated sandbox (local VM, dedicated lab subnet, or private cloud VPC) populated only with synthetic hosts and data.
+- Launch CyberSim Pro with `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1` and connect solely from your trusted MCP client (Claude Desktop, Cline, or a custom app).
+- Keep the container on a private network or loopback interface so simulations cannot reach production systems without explicit routing.
+- After each exercise, reset the lab (destroy/rebuild VM, revert snapshot, or redeploy infrastructure-as-code) to remove leftover artifacts.
+- Require analyst authentication, minimal privileges, and centralized logging to support audit trails and after-action reviews.
+
+### HTTP Bridge for Automation
+
+- For unfiltered automation, run the HTTP bridge (`npm run serve:http` or the Docker HTTP mode) inside the same sandbox and script against it.
+- Protect the endpoint with `CYBERSIM_API_KEY`, strict firewall rules, and optional IP allowlists so only your orchestrator connects.
+- Implement organization-level safety checks in your automation pipeline: log every request/response, enforce throttling, and require each job to declare its defensive training scope.
+- Treat exported reports or artifacts as sensitive lab material; sanitize before sharing outside the exercise team.
+
 ## 🗣️ Prompt Playbook
 
 Use these ready-to-copy prompts when you connect CyberSim Pro to Claude, Cline, or another MCP client.
