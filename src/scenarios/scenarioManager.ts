@@ -1,5 +1,6 @@
 import { AdversaryProfile, getAdversaryProfile, listAdversaryProfiles } from "../data/adversaryProfiles.js";
 import { PluginRegistry, ThreatIntelContribution } from "../utils/pluginRegistry.js";
+import type { ExecutionContext, ExecutionProvenance } from "../utils/executionContext.js";
 
 export interface ThreatIntelSnapshot {
   actor: string;
@@ -33,6 +34,7 @@ export interface SecurityScenario {
   adversaryProfile?: AdversaryProfile;
   threatIntel: ThreatIntelSnapshot;
   targetedCves: string[];
+  provenance?: ExecutionProvenance;
 }
 
 export interface AttackVector {
@@ -78,7 +80,8 @@ export class SecurityScenarioManager {
     type: string,
     difficulty: string,
     environment?: string,
-    options: ScenarioOptions = {}
+    options: ScenarioOptions = {},
+    context?: ExecutionContext
   ): Promise<SecurityScenario> {
     const scenarioId = `SCN-${Date.now()}-${++this.scenarioCounter}`;
     const env = environment || "corporate";
@@ -102,8 +105,13 @@ export class SecurityScenarioManager {
       pluginInsights
     );
 
-    this.scenarios.set(scenarioId, scenario);
-    return scenario;
+    const enriched: SecurityScenario = {
+      ...scenario,
+      provenance: context?.provenance,
+    };
+
+    this.scenarios.set(scenarioId, enriched);
+    return enriched;
   }
 
   private generateScenarioTemplate(

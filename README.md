@@ -90,6 +90,17 @@ Secure with environment variables:
 - `CYBERSIM_RBAC_CONFIG` – optional path to a JSON role policy (see [Role-Based Access & Approvals](#role-based-access--approvals))
 - Metrics, control feeds, and audit digests are persisted to `./metrics/`, `./controls/`, and `./logs/` respectively.
 
+### Tamper-Proof Audit Seals
+- Enable hash-chained logging by setting `CYBERSIM_AUDIT_HMAC_KEY` (optionally supply `CYBERSIM_AUDIT_CHAIN_ID` for multi-tenant tracking).
+- Use `CYBERSIM_AUDIT_SEAL_KEY` (or reuse the HMAC key) to sign exported seals; set `_ENCODING=base64` when providing base64 secrets.
+- Generate an immutable seal + regulator bundle at any time:
+  ```bash
+  npm run audit:seal -- --log ./logs/audit.log --format json.gz
+  ```
+- Outputs are written to `./logs/seals/` (JSON seal plus optional compressed bundle) and include `chainHash`, `chainVerified`, signature metadata, and the last approval token event.
+- Schedule `npm run audit:seal` via CI/cron to push weekly bundles into your immutable evidence locker (see `.github/workflows/audit-seal.yml` for a GitHub Actions example).
+- Summarise governance progress for Legal/Risk with `npm run compliance:report` (see `docs/COMPLIANCE_ROADMAP.md`).
+
 Sample health & scenario creation:
 ```bash
 curl -s http://localhost:8787/health
@@ -421,10 +432,21 @@ Network analysis responses include:
 - Procurement brief with FAQ, legal, and risk-control summaries
 
 ### Audit Logging & Kill Switch
-- Every tool invocation is appended to `logs/audit.log` (configurable via `CYBERSIM_AUDIT_LOG_DIR`).
-- Entries capture timestamp, tool, sanitized arguments, metadata (scenario/report IDs), and error messages.
+- Every tool invocation is appended to `logs/audit.log` (configurable via `CYBERSIM_AUDIT_LOG_DIR`) and chained with SHA-256 hashes plus optional HMAC signatures (`CYBERSIM_AUDIT_HMAC_KEY`, `CYBERSIM_AUDIT_CHAIN_ID`).
+- Entries capture timestamp, tool, sanitized arguments, metadata, and error messages; validation exposes `chainVerified`, `lastChainHash`, and signature provenance.
+- `npm run audit:seal` produces a signed seal and regulator bundle under `logs/seals/`, ready for object-lock storage or shareable attestations.
+- `npm run compliance:report` surfaces control maturity, framework mappings, and roadmap freshness for monthly stakeholder updates.
 - The `stop_simulation` tool halts activity immediately and records the termination reason for traceability.
-- `generate_validation_report` produces hashed digests of audit activity for auditors and regulators.
+- `generate_validation_report` produces hashed digests and anomaly flags that auditors can cross-check against sealed exports.
+
+**Identity Roadmap**
+- Enterprise SSO/SCIM integration is tracked in `docs/SSO_SCIM_DESIGN.md`; prepare `server.json` with an `identity` block and customise `config/role-mappings.example.json` when enabling the gateway.
+- OIDC callbacks: `POST /api/auth/oidc/callback` (JSON body with `id_token`); SAML assertions: `POST /api/sso/assert` (form-encoded `SAMLResponse` supported). Fetch SAML metadata via `GET /api/sso/metadata`.
+- SCIM v2 endpoints (`/api/scim/v2/Users`, `/api/scim/v2/Groups`) require `identity.scim.bearerToken` or `CYBERSIM_SCIM_TOKEN`; weekly audit seal workflow captures provisioning evidence.
+- Provide IdP MFA context to bypass restricted-tool MFA holds via `identity.sso.oidc.mfaSatisfiedAmrValues` / `mfaSatisfiedAcrValues` (defaults recognise common AMR/ACR values); sessions persist until `sessionTtlMinutes` expires or `X-Cybersim-Session` token is rotated.
+- Resolved IdP sessions now flow into every simulator/manager pipeline; returned JSON payloads include a `provenance` block so scenarios, simulations, investigations, forensics, metrics, and control feeds all reference the initiating identity or operator.
+- MCP stdio clients inherit the same provenance envelope when `operator` metadata is supplied, allowing downstream tools to align artefacts with human or automated actors even without an active IdP session.
+- After upgrading, run `npm run migrate:provenance` to backfill legacy metrics/control logs with the new provenance fields before exporting historical evidence.
 
 ### Role-Based Access & Approvals
 - High-impact tools (`simulate_attack`, `stop_simulation`, `replay_telemetry`) respect role policies defined via `CYBERSIM_RBAC_CONFIG`.

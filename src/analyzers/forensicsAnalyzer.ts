@@ -1,3 +1,5 @@
+import type { ExecutionContext, ExecutionProvenance } from "../utils/executionContext.js";
+
 export interface ForensicsAnalysisResult {
   analysisId: string;
   artifactType: string;
@@ -10,6 +12,7 @@ export interface ForensicsAnalysisResult {
   iocs: ForensicIOC[];
   chainOfCustody: CustodyRecord[];
   report: ForensicReport;
+  provenance?: ExecutionProvenance;
 }
 
 export interface ForensicFinding {
@@ -75,7 +78,8 @@ export class ForensicsAnalyzer {
   async analyzeArtifact(
     artifactType: string,
     systemId: string,
-    analysisDepth: string
+    analysisDepth: string,
+    context?: ExecutionContext
   ): Promise<ForensicsAnalysisResult> {
     const analysisId = `FA-${Date.now()}`;
     const timestamp = new Date().toISOString();
@@ -99,6 +103,7 @@ export class ForensicsAnalyzer {
       iocs,
       chainOfCustody,
       report,
+      provenance: context?.provenance,
     };
 
     this.analyses.set(analysisId, result);

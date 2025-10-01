@@ -18,6 +18,8 @@ import type { IncidentInvestigation, IncidentSummary } from "./managers/incident
 import { ForensicsAnalyzer } from "./analyzers/forensicsAnalyzer.js";
 import { AuditLogger } from "./utils/auditLogger.js";
 import { AccessControl, OperatorContext } from "./utils/accessControl.js";
+import { buildExecutionContext } from "./utils/executionContext.js";
+import type { ExecutionContext } from "./utils/executionContext.js";
 import { MetricsTracker } from "./utils/metricsTracker.js";
 import { ControlFeed, ControlRecommendation } from "./utils/controlFeed.js";
 import { replayTelemetry, TelemetryEvent } from "./utils/telemetryAnalyzer.js";
@@ -77,7 +79,7 @@ class CyberSimProServer {
       const operator = (toolArgs.operator || toolArgs.operator_context) as OperatorContext | undefined;
       const approvalToken = typeof toolArgs.approval_token === "string" ? (toolArgs.approval_token as string) : undefined;
       try {
-        this.accessControl.enforce(name, operator, approvalToken);
+        this.accessControl.enforce(name, operator, approvalToken, null);
       } catch (error) {
         return {
           content: [
@@ -94,8 +96,10 @@ class CyberSimProServer {
       delete (invocationArgs as Record<string, unknown>).approval_token;
       delete (invocationArgs as Record<string, unknown>).operator_context;
 
+      const executionContext = buildExecutionContext(operator, null);
+
       try {
-        const data = await this.executeTool(name, invocationArgs);
+        const data = await this.executeTool(name, invocationArgs, executionContext);
         await this.auditLogger.log({
           timestamp: new Date().toISOString(),
           tool: name,
@@ -104,8 +108,9 @@ class CyberSimProServer {
           arguments: invocationArgs,
           metadata: {
             ...this.extractMetadata(name, data),
-            operatorId: operator?.id,
-            operatorRole: operator?.role,
+            operatorId: executionContext.actorId,
+            operatorRole: executionContext.actorRole,
+            provenance: executionContext.provenance,
           },
         });
         return this.formatResult(data);
@@ -118,6 +123,11 @@ class CyberSimProServer {
           durationMs: Date.now() - startedAt,
           arguments: invocationArgs,
           errorMessage,
+          metadata: {
+            operatorId: executionContext.actorId,
+            operatorRole: executionContext.actorRole,
+            provenance: executionContext.provenance,
+          },
         });
         return {
           content: [
@@ -414,32 +424,32 @@ class CyberSimProServer {
     ];
   }
 
-  private async executeTool(name: string, args: any): Promise<unknown> {
+  private async executeTool(name: string, args: any, context: ExecutionContext): Promise<unknown> {
     switch (name) {
       case "create_scenario":
-        return await this.handleCreateScenario(args);
+        return await this.handleCreateScenario(args, context);
       case "simulate_attack":
-        return await this.handleSimulateAttack(args);
+        return await this.handleSimulateAttack(args, context);
       case "analyze_network":
-        return await this.handleAnalyzeNetwork(args);
+        return await this.handleAnalyzeNetwork(args, context);
       case "investigate_incident":
-        return await this.handleInvestigateIncident(args);
+        return await this.handleInvestigateIncident(args, context);
       case "forensics_analysis":
-        return await this.handleForensicsAnalysis(args);
+        return await this.handleForensicsAnalysis(args, context);
       case "generate_report":
-        return await this.handleGenerateReport(args);
+        return await this.handleGenerateReport(args, context);
       case "stop_simulation":
-        return await this.handleStopSimulation(args);
+        return await this.handleStopSimulation(args, context);
       case "replay_telemetry":
-        return await this.handleReplayTelemetry(args);
+        return await this.handleReplayTelemetry(args, context);
       case "list_metrics":
-        return await this.handleListMetrics();
+        return await this.handleListMetrics(context);
       case "export_controls":
-        return await this.handleExportControls();
+        return await this.handleExportControls(context);
       case "sync_risk_register":
-        return await this.handleSyncRiskRegister(args);
+        return await this.handleSyncRiskRegister(args, context);
       case "generate_validation_report":
-        return await this.handleValidationReport();
+        return await this.handleValidationReport(context);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -456,7 +466,7 @@ class CyberSimProServer {
     };
   }
 
-  private async handleCreateScenario(args: any): Promise<unknown> {
+  private async handleCreateScenario(args: any, context: ExecutionContext): Promise<unknown> {
     return await this.scenarioManager.createScenario(
       args.type,
       args.difficulty,
@@ -465,15 +475,17 @@ class CyberSimProServer {
         sector: args.sector,
         adversaryProfile: args.adversary_profile,
         cveFocus: args.focus_cves,
-      }
+      },
+      context
     );
   }
 
-  private async handleSimulateAttack(args: any): Promise<unknown> {
+  private async handleSimulateAttack(args: any, context: ExecutionContext): Promise<unknown> {
     const result = await this.threatSimulator.simulateAttack(
       args.attack_type,
       args.target,
-      args.intensity || "medium"
+      args.intensity || "medium",
+      context
     );
     await this.metricsTracker.record("simulate_attack", {
       simulationId: result.simulationId,
@@ -481,41 +493,45 @@ class CyberSimProServer {
       target: result.target,
       detectionRate: result.detectionRate,
       intensity: result.intensity,
-    });
+    }, context.provenance);
     return result;
   }
 
-  private async handleAnalyzeNetwork(args: any): Promise<unknown> {
+  private async handleAnalyzeNetwork(args: any, context: ExecutionContext): Promise<unknown> {
     const result = await this.networkSimulator.analyzeNetwork(
       args.network_segment,
       args.duration || 10,
-      args.focus || ["anomalies"]
+      args.focus || ["anomalies"],
+      context
     );
-    await this.captureControlsFromNetwork(result);
+    await this.captureControlsFromNetwork(result, context);
     return result;
   }
 
-  private async handleInvestigateIncident(args: any): Promise<unknown> {
+  private async handleInvestigateIncident(args: any, context: ExecutionContext): Promise<unknown> {
     return await this.incidentManager.investigateIncident(
       args.incident_id,
-      args.scope || "initial"
+      args.scope || "initial",
+      context
     );
   }
 
-  private async handleForensicsAnalysis(args: any): Promise<unknown> {
+  private async handleForensicsAnalysis(args: any, context: ExecutionContext): Promise<unknown> {
     return await this.forensicsAnalyzer.analyzeArtifact(
       args.artifact_type,
       args.system_id,
-      args.analysis_depth || "standard"
+      args.analysis_depth || "standard",
+      context
     );
   }
 
-  private async handleGenerateReport(args: any): Promise<unknown> {
+  private async handleGenerateReport(args: any, context: ExecutionContext): Promise<unknown> {
     const report = await this.incidentManager.generateReport(
       args.report_type,
       args.incident_ids || [],
       args.include_recommendations !== false,
-      args.mode
+      args.mode,
+      context
     );
     await this.metricsTracker.record("generate_report", {
       reportId: report.reportId,
@@ -523,11 +539,11 @@ class CyberSimProServer {
       detectionLatencyHours: report.metrics.mttd,
       containmentTimeHours: report.metrics.mttr,
       incidentCount: report.metrics.incidentCount,
-    });
+    }, context.provenance);
     return report;
   }
 
-  private async handleStopSimulation(args: any): Promise<unknown> {
+  private async handleStopSimulation(args: any, _context: ExecutionContext): Promise<unknown> {
     const targetId: string | undefined = args.simulation_id;
     const reason: string | undefined = args.reason;
 
@@ -551,7 +567,7 @@ class CyberSimProServer {
     };
   }
 
-  private async handleReplayTelemetry(args: any): Promise<unknown> {
+  private async handleReplayTelemetry(args: any, context: ExecutionContext): Promise<unknown> {
     const simulationId: string = args.simulation_id;
     const scenarioId: string | undefined = args.scenario_id;
     const simulation = this.threatSimulator.getSimulation(simulationId);
@@ -567,27 +583,27 @@ class CyberSimProServer {
       telemetry,
     });
 
-    const recommendations = this.createRecommendationsFromTelemetry(simulation, result.detectionGaps);
+    const recommendations = this.createRecommendationsFromTelemetry(simulation, result.detectionGaps, context);
     await this.controlFeed.capture(recommendations);
     await this.metricsTracker.record("replay_telemetry", {
       simulationId,
       totalEvents: result.totalEvents,
       matchedTechniques: result.matchedTechniques.length,
       detectionGaps: result.detectionGaps.length,
-    });
+    }, context.provenance);
 
     return result;
   }
 
-  private async handleListMetrics(): Promise<unknown> {
+  private async handleListMetrics(_context: ExecutionContext): Promise<unknown> {
     return await this.metricsTracker.summarize();
   }
 
-  private async handleExportControls(): Promise<unknown> {
+  private async handleExportControls(_context: ExecutionContext): Promise<unknown> {
     return await this.controlFeed.export();
   }
 
-  private async handleSyncRiskRegister(args: any): Promise<unknown> {
+  private async handleSyncRiskRegister(args: any, _context: ExecutionContext): Promise<unknown> {
     const system = args.system as RiskSystem;
     const incidentId = args.incident_id as string;
     const investigations = this.incidentManager.listInvestigations();
@@ -606,7 +622,7 @@ class CyberSimProServer {
     return payload;
   }
 
-  private async handleValidationReport(): Promise<unknown> {
+  private async handleValidationReport(_context: ExecutionContext): Promise<unknown> {
     const logPath = this.auditLogger.getLogFilePath();
     return await generateValidationDigest(logPath);
   }
@@ -631,7 +647,7 @@ class CyberSimProServer {
     return [];
   }
 
-  private async captureControlsFromNetwork(result: NetworkAnalysisResult): Promise<void> {
+  private async captureControlsFromNetwork(result: NetworkAnalysisResult, context: ExecutionContext): Promise<void> {
     const recommendations: ControlRecommendation[] = [];
 
     result.detectionArtifacts.sigma?.forEach((rule) => {
@@ -647,6 +663,8 @@ class CyberSimProServer {
           query: rule.query,
           tags: rule.tags,
         },
+        executedBy: context.actorId,
+        provenance: context.provenance,
       });
     });
 
@@ -662,6 +680,8 @@ class CyberSimProServer {
           query: rule.query,
           tags: rule.tags,
         },
+        executedBy: context.actorId,
+        provenance: context.provenance,
       });
     });
 
@@ -677,6 +697,8 @@ class CyberSimProServer {
           query: rule.query,
           tags: rule.tags,
         },
+        executedBy: context.actorId,
+        provenance: context.provenance,
       });
     });
 
@@ -691,6 +713,8 @@ class CyberSimProServer {
         payload: {
           recommendations: gap.recommendations,
         },
+        executedBy: context.actorId,
+        provenance: context.provenance,
       });
     });
 
@@ -706,6 +730,8 @@ class CyberSimProServer {
           configuration: hook.configuration,
           samplePayload: hook.samplePayload,
         },
+        executedBy: context.actorId,
+        provenance: context.provenance,
       });
     });
 
@@ -714,7 +740,8 @@ class CyberSimProServer {
 
   private createRecommendationsFromTelemetry(
     simulation: AttackSimulationResult,
-    detectionGaps: string[]
+    detectionGaps: string[],
+    context: ExecutionContext
   ): ControlRecommendation[] {
     return detectionGaps.map((gap, index) => ({
       id: `telemetry-gap-${simulation.simulationId}-${index}`,
@@ -727,6 +754,8 @@ class CyberSimProServer {
         simulationId: simulation.simulationId,
         detectionGap: gap,
       },
+      executedBy: context.actorId,
+      provenance: context.provenance,
     }));
   }
 

@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+import type { ExecutionProvenance } from "./executionContext.js";
+
 export interface ControlRecommendation {
   id: string;
   title: string;
@@ -9,6 +11,8 @@ export interface ControlRecommendation {
   source: string;
   priority: "low" | "medium" | "high" | "critical";
   payload: Record<string, unknown>;
+  executedBy?: string;
+  provenance?: ExecutionProvenance;
 }
 
 export class ControlFeed {
@@ -25,7 +29,8 @@ export class ControlFeed {
       return;
     }
     await fs.promises.mkdir(this.controlDir, { recursive: true });
-    const lines = recommendations.map((rec) => JSON.stringify({ ...rec, capturedAt: new Date().toISOString() }));
+    const capturedAt = new Date().toISOString();
+    const lines = recommendations.map((rec) => JSON.stringify({ ...rec, capturedAt }));
     await fs.promises.appendFile(this.controlFile, lines.join("\n") + "\n", { encoding: "utf8" });
   }
 

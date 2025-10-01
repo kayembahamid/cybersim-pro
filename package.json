@@ -12,6 +12,9 @@
     "watch": "tsc --watch",
     "dev": "npm run build && node build/index.js",
     "serve:http": "npm run build && node build/httpServer.js",
+    "audit:seal": "npm run build && node build/cli/exportAuditSeal.js",
+    "compliance:report": "npm run build && node build/cli/complianceReport.js",
+    "migrate:provenance": "npm run build && node build/cli/backfillProvenance.js",
     "prepare": "npm run build"
   },
   "keywords": [

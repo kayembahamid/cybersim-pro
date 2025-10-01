@@ -1,0 +1,17 @@
+[
+  {
+    "id": "Okta-Analysts",
+    "roles": ["analyst"],
+    "approvalRequired": false
+  },
+  {
+    "id": "Okta-Controllers",
+    "roles": ["controller"],
+    "approvalRequired": true
+  },
+  {
+    "id": "Okta-Admins",
+    "roles": ["controller", "admin"],
+    "approvalRequired": true
+  }
+]

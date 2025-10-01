@@ -1,3 +1,5 @@
+import type { ExecutionContext, ExecutionProvenance } from "../utils/executionContext.js";
+
 export interface NetworkAnalysisResult {
   segmentId: string;
   duration: number;
@@ -12,6 +14,7 @@ export interface NetworkAnalysisResult {
   mitreHeatmap: MitreHeatmapEntry[];
   gapAnalysis: DetectionGap[];
   integrationHooks: IntegrationHook[];
+  provenance?: ExecutionProvenance;
 }
 
 export interface NetworkStatistics {
@@ -153,7 +156,8 @@ export class NetworkSimulator {
   async analyzeNetwork(
     networkSegment: string,
     duration: number,
-    focus: string[]
+    focus: string[],
+    context?: ExecutionContext
   ): Promise<NetworkAnalysisResult> {
     const analysisId = `NET-${Date.now()}`;
     
@@ -213,6 +217,7 @@ export class NetworkSimulator {
       mitreHeatmap,
       gapAnalysis,
       integrationHooks,
+      provenance: context?.provenance,
     };
 
     this.activeAnalyses.set(analysisId, result);

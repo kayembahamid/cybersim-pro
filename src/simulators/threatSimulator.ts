@@ -1,3 +1,5 @@
+import type { ExecutionContext, ExecutionProvenance } from "../utils/executionContext.js";
+
 export interface AttackSimulationResult {
   simulationId: string;
   attackType: string;
@@ -14,6 +16,7 @@ export interface AttackSimulationResult {
   detectionRate: number;
   impactAssessment: ImpactAssessment;
   mitreAttackMapping: MitreMapping[];
+  provenance?: ExecutionProvenance;
 }
 
 export interface AttackPhase {
@@ -245,7 +248,8 @@ export class ThreatSimulator {
   async simulateAttack(
     attackType: string,
     target: string,
-    intensity: string
+    intensity: string,
+    context?: ExecutionContext
   ): Promise<AttackSimulationResult> {
     const simulationId = `SIM-${Date.now()}`;
     const startTime = new Date().toISOString();
@@ -275,6 +279,7 @@ export class ThreatSimulator {
       detectionRate,
       impactAssessment,
       mitreAttackMapping: mitreMapping,
+      provenance: context?.provenance,
     };
 
     this.activeSimulations.set(simulationId, result);
@@ -887,6 +892,7 @@ export class ThreatSimulator {
       endTime: terminatedAt,
       terminatedAt,
       stopReason: reason || "manual_stop",
+      provenance: simulation.provenance,
     };
 
     this.activeSimulations.delete(simulationId);

@@ -1,0 +1,58 @@
+name: Weekly Audit Seal Export
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  export-seal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate audit seal bundle
+        env:
+          CYBERSIM_AUDIT_HMAC_KEY: ${{ secrets.CYBERSIM_AUDIT_HMAC_KEY }}
+          CYBERSIM_AUDIT_SEAL_KEY: ${{ secrets.CYBERSIM_AUDIT_SEAL_KEY }}
+          CYBERSIM_AUDIT_CHAIN_ID: production
+        run: npm run audit:seal -- --format json.gz
+
+      - name: Upload seal bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-seal-${{ github.run_id }}
+          path: logs/seals/
+
+      - name: Sync to evidence locker (optional)
+        if: ${{ secrets.AWS_EVIDENCE_BUCKET != '' }}
+        env:
+          AWS_REGION: ${{ secrets.AWS_EVIDENCE_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_EVIDENCE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_EVIDENCE_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_EVIDENCE_SESSION_TOKEN }}
+          BUCKET: ${{ secrets.AWS_EVIDENCE_BUCKET }}
+        run: |
+          mkdir -p ~/.aws
+          cat <<CFG > ~/.aws/config
+          [default]
+          region=${AWS_REGION}
+          CFG
+          aws s3 sync logs/seals/ "s3://${BUCKET}/seals/" --sse AES256 --delete
+
+      - name: Cleanup working directory
+        run: rm -rf logs/seals/

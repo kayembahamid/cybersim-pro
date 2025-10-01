@@ -1,0 +1,74 @@
+[
+  {
+    "controlId": "CM-01",
+    "domain": "Change Management",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC8.1" },
+      { "program": "ISO27001", "reference": "A.8.32" },
+      { "program": "NISTCSF", "reference": "PR.IP-3" }
+    ]
+  },
+  {
+    "controlId": "CM-02",
+    "domain": "Change Management",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC8.1" },
+      { "program": "ISO27001", "reference": "A.8.23" }
+    ]
+  },
+  {
+    "controlId": "VM-01",
+    "domain": "Vulnerability Management",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC7.1" },
+      { "program": "ISO27001", "reference": "A.8.8" },
+      { "program": "NISTCSF", "reference": "DE.CM-8" }
+    ]
+  },
+  {
+    "controlId": "VM-02",
+    "domain": "Vulnerability Management",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC7.1" },
+      { "program": "ISO27001", "reference": "A.8.20" }
+    ]
+  },
+  {
+    "controlId": "BR-01",
+    "domain": "Backup & Recovery",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC7.4" },
+      { "program": "ISO27001", "reference": "A.8.13" },
+      { "program": "NISTCSF", "reference": "PR.IP-4" }
+    ]
+  },
+  {
+    "controlId": "BR-02",
+    "domain": "Backup & Recovery",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC7.4" },
+      { "program": "ISO27001", "reference": "A.5.29" },
+      { "program": "NISTCSF", "reference": "PR.IP-9" }
+    ]
+  },
+  {
+    "controlId": "AM-01",
+    "domain": "Access Management",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC6.2" },
+      { "program": "ISO27001", "reference": "A.5.15" },
+      { "program": "NISTCSF", "reference": "PR.AC-1" },
+      { "program": "HIPAA", "reference": "164.312(d)" }
+    ]
+  },
+  {
+    "controlId": "AU-01",
+    "domain": "Audit & Logging",
+    "frameworks": [
+      { "program": "SOC2", "reference": "CC7.2" },
+      { "program": "ISO27001", "reference": "A.8.16" },
+      { "program": "NISTCSF", "reference": "DE.AE-3" },
+      { "program": "HIPAA", "reference": "164.312(b)" }
+    ]
+  }
+]

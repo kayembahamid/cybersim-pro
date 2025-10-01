@@ -1,3 +1,5 @@
+import type { ExecutionContext, ExecutionProvenance } from "../utils/executionContext.js";
+
 export interface IncidentInvestigation {
   incidentId: string;
   scope: string;
@@ -11,6 +13,7 @@ export interface IncidentInvestigation {
   containmentActions: ContainmentAction[];
   remediationSteps: RemediationStep[];
   lessonsLearned: string[];
+  provenance?: ExecutionProvenance;
 }
 
 export interface InvestigationTimeline {
@@ -105,6 +108,7 @@ export interface SecurityReport {
   executiveDashboard: ExecutiveDashboard;
   maturityRoadmap: MaturityRoadmap;
   procurementBrief: ProcurementBrief;
+  provenance?: ExecutionProvenance;
 }
 
 export interface IncidentSummary {
@@ -237,10 +241,18 @@ export class IncidentResponseManager {
   private investigations: Map<string, IncidentInvestigation> = new Map();
   private reports: Map<string, SecurityReport> = new Map();
 
-  async investigateIncident(incidentId: string, scope: string): Promise<IncidentInvestigation> {
+  async investigateIncident(
+    incidentId: string,
+    scope: string,
+    context?: ExecutionContext
+  ): Promise<IncidentInvestigation> {
     const investigation = await this.conductInvestigation(incidentId, scope);
-    this.investigations.set(incidentId, investigation);
-    return investigation;
+    const enriched: IncidentInvestigation = {
+      ...investigation,
+      provenance: context?.provenance,
+    };
+    this.investigations.set(incidentId, enriched);
+    return enriched;
   }
 
   private async conductInvestigation(incidentId: string, scope: string): Promise<IncidentInvestigation> {
@@ -697,7 +709,8 @@ export class IncidentResponseManager {
     reportType: string,
     incidentIds: string[],
     includeRecommendations: boolean,
-    mode?: string
+    mode?: string,
+    context?: ExecutionContext
   ): Promise<SecurityReport> {
     const reportId = `RPT-${Date.now()}`;
     const generatedDate = new Date().toISOString();
@@ -733,8 +746,13 @@ export class IncidentResponseManager {
       procurementBrief,
     };
 
-    this.reports.set(reportId, report);
-    return report;
+    const enriched: SecurityReport = {
+      ...report,
+      provenance: context?.provenance,
+    };
+
+    this.reports.set(reportId, enriched);
+    return enriched;
   }
 
   private summarizeIncidents(incidentIds: string[]): IncidentSummary[] {

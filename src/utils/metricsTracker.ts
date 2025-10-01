@@ -1,10 +1,13 @@
 import fs from "fs";
 import path from "path";
 
+import type { ExecutionProvenance } from "./executionContext.js";
+
 export interface MetricRecord {
   timestamp: string;
   tool: string;
   data: Record<string, unknown>;
+  provenance?: ExecutionProvenance;
 }
 
 export interface MetricsSummary {
@@ -24,12 +27,13 @@ export class MetricsTracker {
     this.metricsFile = path.join(metricsDirectory, metricsFileName);
   }
 
-  async record(tool: string, data: Record<string, unknown>): Promise<void> {
+  async record(tool: string, data: Record<string, unknown>, provenance?: ExecutionProvenance): Promise<void> {
     await fs.promises.mkdir(this.metricsDir, { recursive: true });
     const entry: MetricRecord = {
       timestamp: new Date().toISOString(),
       tool,
       data,
+      provenance,
     };
     await fs.promises.appendFile(this.metricsFile, JSON.stringify(entry) + "\n", { encoding: "utf8" });
   }
