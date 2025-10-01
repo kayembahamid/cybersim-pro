@@ -712,6 +712,17 @@ Use these playbooks to rehearse different attack paths while staying inside the 
    - `forensics_analysis`: target `PLC-GATEWAY`, with emphasis on integrity tampering.
    - Closing: “Draft an OT incident response checklist based on this simulation.”
 
+### Live Red-Team / Purple-Team Showcases
+
+Use this flow when demonstrating real-time attacks to stakeholders while staying within the safe lab.
+
+1. **Lab readiness** – schedule the session, boot the sandbox, and preload scenario prompts/JSON you plan to show. Remind viewers that all activity is synthetic.
+2. **Attack narration** – share your screen, call `simulate_attack`, and walk through each phase (goal, MITRE tactic, detection). Pause to discuss what success/failure would look like in production.
+3. **Telemetry handoff** – immediately surface artifacts and IOCs (paste into a shared doc, stream to a demo SIEM) so defenders can practice triage in parallel.
+4. **Blue-team pivot** – run `investigate_incident`, `analyze_network`, or `forensics_analysis` live and invite SOC/IR staff to interpret evidence and propose containment.
+5. **Executive recap** – finish by generating an executive `generate_report`, annotate key business impacts, and capture agreed remediation tasks.
+6. **Reset & archive** – shut down the container, revert the lab snapshot, and store recordings plus raw tool outputs in your training evidence repository.
+
 ## 📊 Output Formats
 
 All tools return structured JSON data including:
