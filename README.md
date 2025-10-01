@@ -716,12 +716,25 @@ Use these playbooks to rehearse different attack paths while staying inside the 
 
 Use this flow when demonstrating real-time attacks to stakeholders while staying within the safe lab.
 
-1. **Lab readiness** – schedule the session, boot the sandbox, and preload scenario prompts/JSON you plan to show. Remind viewers that all activity is synthetic.
-2. **Attack narration** – share your screen, call `simulate_attack`, and walk through each phase (goal, MITRE tactic, detection). Pause to discuss what success/failure would look like in production.
-3. **Telemetry handoff** – immediately surface artifacts and IOCs (paste into a shared doc, stream to a demo SIEM) so defenders can practice triage in parallel.
-4. **Blue-team pivot** – run `investigate_incident`, `analyze_network`, or `forensics_analysis` live and invite SOC/IR staff to interpret evidence and propose containment.
-5. **Executive recap** – finish by generating an executive `generate_report`, annotate key business impacts, and capture agreed remediation tasks.
-6. **Reset & archive** – shut down the container, revert the lab snapshot, and store recordings plus raw tool outputs in your training evidence repository.
+1. **Lab readiness** – schedule the session, boot the sandbox, and preload the prompts you plan to use. Remind viewers that everything is synthetic.
+   - Start the container ahead of time: `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`.
+   - Stage a "runbook": copy the kickoff/playbook prompts and any scenario JSON into a scratch pad so you can paste them quickly.
+   - Verify recording/streaming tools and brief participants on the rules of engagement (no production data, training UID for every action).
+2. **Attack narration** – share your screen, call `simulate_attack`, and walk through each phase like a live incident broadcast.
+   - Explain the attacker goal, highlight the MITRE tactic/technique returned (e.g., `T1566.001` phishing), and discuss what defenses should trigger.
+   - Contrast with production reality: "If this were our finance tenant, this alert would appear in Proofpoint within 60 seconds."
+3. **Telemetry handoff** – immediately surface artifacts and IOCs so defenders can practice in parallel.
+   - Paste hashes, registry keys, or commands into a shared doc/Slack channel, or ingest them into a demo SIEM dashboard.
+   - Encourage analysts to run quick hunts ("Show me how you’d search Splunk for `lsass.dmp` being created").
+4. **Blue-team pivot** – run `investigate_incident`, `analyze_network`, or `forensics_analysis` live and hand the mic to SOC/IR staff.
+   - Ask them to interpret the evidence ("What containment step happens now?").
+   - Capture decisions in a shared note so responsibilities are clear.
+5. **Executive recap** – finish by generating an executive `generate_report`, annotate key business impacts, and capture remediation tasks.
+   - Convert the report to Markdown/PDF and point out downtime, financial impact, and customer messaging implications.
+   - Assign owners/dates to recommended actions while leadership is present.
+6. **Reset & archive** – shut down the container, revert the lab snapshot, and store recordings plus raw tool outputs.
+   - File the assets in your training evidence repository tagged with tabletop ID/date.
+   - Send a follow-up email within 24 hours summarizing lessons learned and action items.
 
 ## 📊 Output Formats
 
