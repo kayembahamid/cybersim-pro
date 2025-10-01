@@ -671,6 +671,47 @@ Summarize key defensive takeaways from today’s tabletop by People, Process, an
 3. Optionally request additional formats (Google Doc, PDF, slide outline) using the assistant’s native export features.
 4. Store the final report alongside the raw tool JSON in your evidence repository so teams can trace findings back to the simulation data.
 
+### Red Team Simulation Recipes
+
+Use these playbooks to rehearse different attack paths while staying inside the lab safeguards above. Each recipe chains tool calls and provides red-team/blue-team prompts.
+
+1. **Spearphishing → Ransomware (Finance Department)**
+   - Kickoff: “Simulate a ransomware campaign targeting Finance via spearphishing in our training lab.”
+   - `create_scenario`: `{ "type": "ransomware", "difficulty": "advanced", "environment": "finance", "initial_vector": "phishing" }`
+   - `simulate_attack`: focus on delivery/execution; ask for defensive alerts (“Highlight which email and endpoint controls fired.”)
+   - `analyze_network`: segment `FINANCE-SUBNET`, focus `["anomalies","command_and_control"]`.
+   - `generate_report`: executive summary plus finance-specific business impact.
+
+2. **Credential Theft → Privilege Escalation (Domain Admin takeover)**
+   - Scenario prompt: “We’re testing response to Kerberoasting and privilege escalation in AD.”
+   - `create_scenario`: `{ "type": "apt", "difficulty": "expert", "environment": "active_directory", "training": true }`
+   - `simulate_attack`: request explicit MITRE techniques for credential access and privilege escalation.
+   - `investigate_incident`: incident ID from simulation; ask for host artifacts (tickets, LSASS dumps).
+   - Follow-up: “List containment steps to stop attacker lateral movement post-escalation.”
+
+3. **Supply-Chain Malware (CI/CD pipeline)**
+   - Scenario: “Model a compromised dependency pushing malicious build artifacts.”
+   - `create_scenario`: `{ "type": "supply_chain", "environment": "devops", "difficulty": "advanced" }`
+   - `simulate_attack`: emphasize build server persistence and artifact poisoning.
+   - `analyze_network`: target `CICD-NET`, focus `["threats","exfiltration"]`.
+   - `forensics_analysis`: run on `BUILD-SERVER-01`, `analysis_depth":"comprehensive"`.
+   - Debrief: “Summarize developer workstation hardening recommendations.”
+
+4. **Insider Data Exfiltration (HR Records)**
+   - Kickoff: “Simulate a malicious insider exfiltrating HR data via cloud storage.”
+   - `create_scenario`: `{ "type": "data_breach", "environment": "hr", "insider_risk": true }`
+   - `simulate_attack`: request details on data staging and exfil channels.
+   - `analyze_network`: focus `["exfiltration","anomalies"]`, segment `HR-CLOUD-GW`.
+   - `generate_report`: compliance-focused (include regulatory notification guidance).
+
+5. **OT Network Disruption (Manufacturing Plant)**
+   - Scenario prompt: “We need to drill an attacker pivoting from IT to OT and disrupting PLCs.”
+   - `create_scenario`: `{ "type": "ddos", "environment": "ot", "pivot_from_it": true }`
+   - `simulate_attack`: stress lateral movement from corporate LAN to OT VLAN.
+   - `analyze_network`: run twice—`CORP-LAN` and `OT-NET`—merge findings for cross-domain visibility.
+   - `forensics_analysis`: target `PLC-GATEWAY`, with emphasis on integrity tampering.
+   - Closing: “Draft an OT incident response checklist based on this simulation.”
+
 ## 📊 Output Formats
 
 All tools return structured JSON data including:
