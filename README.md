@@ -516,20 +516,22 @@ Digital forensics maintains proper evidence handling:
 - Sanitize payload-like output by returning placeholders or high-level descriptions while preserving investigative details to reduce guardrail triggers.
 - Provide operators with acceptable-use guidance and keep conversations focused on detection, mitigation, and lessons learned to align with platform policies.
 
-### Recommended Lab Environment
+## 🛡️ Full Lab Usage (Security Teams)
 
-- Provision an isolated sandbox (local VM, dedicated lab subnet, or private cloud VPC) populated only with synthetic hosts and data.
-- Launch CyberSim Pro with `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1` and connect solely from your trusted MCP client (Claude Desktop, Cline, or a custom app).
-- Keep the container on a private network or loopback interface so simulations cannot reach production systems without explicit routing.
-- After each exercise, reset the lab (destroy/rebuild VM, revert snapshot, or redeploy infrastructure-as-code) to remove leftover artifacts.
-- Require analyst authentication, minimal privileges, and centralized logging to support audit trails and after-action reviews.
+### 1. Isolated Environment Blueprint
 
-### HTTP Bridge for Automation
+- **Build a sandbox**: use a disposable VM, on-prem lab VLAN, or private cloud VPC that contains only synthetic hosts, logs, and credentials.
+- **Run the server**: inside that sandbox execute `docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`. Allow connections only from your approved MCP client (Claude Desktop, Cline, or a custom integration).
+- **Network controls**: keep the container on loopback or a lab-only subnet. Block egress to production networks unless a drill specifically requires staged connectivity.
+- **Hard reset after drills**: destroy/rebuild the VM, revert snapshots, or redeploy via infrastructure-as-code so every exercise starts from a clean baseline.
+- **Access governance**: issue lab-only accounts with least privilege, collect terminal/MCP logs, and require analysts to record objectives and outcomes for compliance.
 
-- For unfiltered automation, run the HTTP bridge (`npm run serve:http` or the Docker HTTP mode) inside the same sandbox and script against it.
-- Protect the endpoint with `CYBERSIM_API_KEY`, strict firewall rules, and optional IP allowlists so only your orchestrator connects.
-- Implement organization-level safety checks in your automation pipeline: log every request/response, enforce throttling, and require each job to declare its defensive training scope.
-- Treat exported reports or artifacts as sensitive lab material; sanitize before sharing outside the exercise team.
+### 2. Automation via HTTP Bridge ("TTP Bridge")
+
+- **Bring up the API**: within the same sandbox run `npm run serve:http` or the Docker HTTP mode to expose CyberSim Pro’s REST interface for orchestration.
+- **Lock it down**: set `CYBERSIM_API_KEY`, restrict ingress with firewall rules and optional IP allowlists, and terminate TLS if you traverse beyond a single host.
+- **Embed safety checks**: in your automation pipeline log every request/response, rate-limit tool invocations, require each job to declare the training scenario ID/scope, and alert on attempts to export live payloads.
+- **Handle outputs carefully**: treat generated reports, timelines, and artifacts as sensitive lab data—store them in secured repositories and sanitize before sharing outside the exercise team.
 
 ## 🗣️ Prompt Playbook
 
