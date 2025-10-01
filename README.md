@@ -508,6 +508,14 @@ Digital forensics maintains proper evidence handling:
 - Handler documentation
 - Evidence preservation
 
+## 🤖 Working with AI Guardrails
+
+- Lead each session with explicit defensive context (authorized lab, training goal) so MCP clients treat the simulation as a safety exercise.
+- Phrase red-team actions as simulated steps that support detection practice instead of real exploitation instructions.
+- Include safety flags in tool prompts or scenario templates (for example, `training=true`, `environment="lab"`) to help downstream assistants interpret intent.
+- Sanitize payload-like output by returning placeholders or high-level descriptions while preserving investigative details to reduce guardrail triggers.
+- Provide operators with acceptable-use guidance and keep conversations focused on detection, mitigation, and lessons learned to align with platform policies.
+
 ## 📊 Output Formats
 
 All tools return structured JSON data including:
