@@ -526,6 +526,20 @@ Digital forensics maintains proper evidence handling:
 - **Hard reset after drills**: destroy/rebuild the VM, revert snapshots, or redeploy via infrastructure-as-code so every exercise starts from a clean baseline.
 - **Access governance**: issue lab-only accounts with least privilege, collect terminal/MCP logs, and require analysts to record objectives and outcomes for compliance.
 
+#### Step-by-step example (Claude Desktop)
+
+1. Start the container in your lab terminal:
+   ```bash
+   docker run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1
+   ```
+   Leave this window open; the server now listens over stdio.
+2. In Claude Desktop open **Settings → MCP Servers → Add**, choose **Custom Command**, and paste `docker` with arguments `run --rm -i hamcodes/cybersim-pro-mcp:v1.0.1`.
+3. Launch a new chat and paste the "Session kickoff" prompt from the playbook. Claude will acknowledge the lab context.
+4. Prompt Claude: “Call `create_scenario` with the ransomware parameters listed in the playbook.” Verify the response contains scenario details and ATT&CK techniques.
+5. Continue sequentially: request `simulate_attack`, `analyze_network`, `investigate_incident`, `forensics_analysis`, and `generate_report`, using the provided prompt snippets so Claude invokes each tool.
+6. After each tool run, download/record the JSON output (Claude → Actions → Copy raw tool response) into your exercise evidence folder.
+7. Conclude with the “Closeout reflection” prompt, then stop the container (Ctrl+C) and revert the lab VM to its clean snapshot.
+
 ### 2. Automation via HTTP Bridge ("TTP Bridge")
 
 - **Bring up the API**: within the same sandbox run `npm run serve:http` or the Docker HTTP mode to expose CyberSim Pro’s REST interface for orchestration.
