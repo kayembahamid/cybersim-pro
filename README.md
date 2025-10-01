@@ -516,6 +516,65 @@ Digital forensics maintains proper evidence handling:
 - Sanitize payload-like output by returning placeholders or high-level descriptions while preserving investigative details to reduce guardrail triggers.
 - Provide operators with acceptable-use guidance and keep conversations focused on detection, mitigation, and lessons learned to align with platform policies.
 
+## 🗣️ Prompt Playbook
+
+Use these ready-to-copy prompts when you connect CyberSim Pro to Claude, Cline, or another MCP client.
+
+**Session kickoff (share first):**
+```text
+You are assisting with a SOC tabletop in an isolated lab environment.
+Objective: train defenders on ransomware response.
+Constraints: describe only simulated attacker actions, never real payloads.
+Confirm readiness, then we will invoke CyberSim Pro tools.
+```
+
+**Scenario creation:**
+```text
+Invoke the CyberSim Pro tool `create_scenario` with:
+{
+  "type": "ransomware",
+  "difficulty": "advanced",
+  "environment": "corporate",
+  "training": true
+}
+Return the narrative, impacted assets, and the MITRE ATT&CK techniques we should brief to analysts.
+```
+
+**Simulated attacker run:**
+```text
+Run `simulate_attack` using the current scenario. Emphasize the lateral movement phase and call out artifacts analysts should monitor. Keep all payloads redacted as `[SIMULATED_PAYLOAD]`.
+```
+
+**Network-focused drill:**
+```text
+Analyze the DMZ segment for a 30-minute window with `analyze_network`.
+Parameters: {"network_segment":"DMZ","duration":30,"focus":["anomalies","threats"],"training":true}.
+Convert the findings into three SOC alert playbooks (detection, triage, containment).
+```
+
+**Host investigation:**
+```text
+Investigate incident INC-TRAIN-2025-002 at full scope with `investigate_incident`.
+Summarize host findings, timeline, and recommended containment actions suitable for the blue-team briefing.
+```
+
+**Forensics deep dive:**
+```text
+Run `forensics_analysis` on WORKSTATION-TRAIN-07 with analysis depth "comprehensive".
+Redact any live malware binaries as `[REDACTED_SAMPLE]` but keep hashes, timestamps, and chain-of-custody notes.
+```
+
+**Executive wrap-up:**
+```text
+Use `generate_report` with report_type "executive" covering incidents INC-TRAIN-2025-001 and INC-TRAIN-2025-002.
+Include lessons learned, policy updates, and technology improvements for leadership.
+```
+
+**Closeout reflection:**
+```text
+Summarize key defensive takeaways from today’s tabletop by People, Process, and Technology. Highlight next steps for blue-team readiness.
+```
+
 ## 📊 Output Formats
 
 All tools return structured JSON data including:
